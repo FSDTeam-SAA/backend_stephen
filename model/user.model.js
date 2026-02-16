@@ -7,8 +7,22 @@ const userSchema = new Schema(
     email: {
       type: String,
       trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true,
+      validator: {
+        validator: function (value) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        },
+      },
     },
-    password: { type: String, select: false },
+    password: { type: String, required: true, select: false },
+    role: {
+      type: String,
+      enum: ["client", "manager", "admin"],
+      default: "admin",
+      index: true,
+    },
     avatar: {
       public_id: { type: String, default: "" },
       url: { type: String, default: "" },
@@ -18,11 +32,6 @@ const userSchema = new Schema(
       expiresAt: { type: Date, default: null },
       attempts: { type: Number, default: 0 },
       lastSentAt: { type: Date, default: null },
-    },
-    role: {
-      type: String,
-      enum: ["user", "manager", "admin"],
-      default: "user",
     },
     verificationInfo: {
       verified: { type: Boolean, default: false },

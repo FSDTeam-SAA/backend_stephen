@@ -26,10 +26,3 @@ export const isAdmin = (req, res, next) => {
   }
   next();
 };
-
-export const isDriver = (req, res, next) => {
-  if (req.user?.role !== "driver") {
-    throw new AppError(403, "Access denied. You are not an driver.");
-  }
-  next();
-};
