@@ -1,16 +1,14 @@
 import nodemailer from 'nodemailer';
 export const sendEmail = async (to,subject, html) => {
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    service: "gmail",
     auth: {
-      user: 'sajjadhossainx0@gmail.com',
-      pass: 'vmmlospccbvrttnc',
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
   });
   await transporter.sendMail({
-    from: 'sajjadhossainx0@gmail.com', // sender address
+    from: process.env.EMAIL_USER, // sender address
     to,
     subject: subject? subject:  'Password change Link : change it by 10 minutes',
     html,

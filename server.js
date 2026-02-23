@@ -45,16 +45,30 @@ app.use(notFound);
 io.on("connection", (socket) => {
   console.log("A client connected:", socket.id);
 
-  socket.on("joinChatRoom", (userId) => {
+  socket.on("joinUserRoom", (userId) => {
     if (userId) {
-      socket.join(`chat_${userId}`);
+      socket.join(`user_${userId}`);
       console.log(`Client ${socket.id} joined user room: ${userId}`);
     }
   });
 
-  socket.on("joinAlerts", () => {
-    socket.join("alerts");
-    console.log(`Client ${socket.id} joined alerts room`);
+  socket.on("joinChatRoom", (chatId) => {
+    if (chatId) {
+      socket.join(`chat_${chatId}`);
+      console.log(`Client ${socket.id} joined chat room: ${chatId}`);
+    }
+  });
+
+  socket.on("typing", ({ chatId, userId }) => {
+    if (chatId && userId) {
+      socket.to(`chat_${chatId}`).emit("chat:typing", { chatId, userId });
+    }
+  });
+
+  socket.on("stopTyping", ({ chatId, userId }) => {
+    if (chatId && userId) {
+      socket.to(`chat_${chatId}`).emit("chat:stopTyping", { chatId, userId });
+    }
   });
 
   socket.on("disconnect", () => {

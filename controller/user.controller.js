@@ -20,7 +20,9 @@ export const getProfile = catchAsync(async (req, res) => {
 export const updateProfile = catchAsync(async (req, res) => {
   const { name, phone, address, bio } = req.body;
 
-  const user = await User.findById(req.user._id);
+  const user = await User.findById(req.user._id).select(
+    "-password -refreshToken -verificationInfo -password_reset_token -otp",
+  );
 
   if (name) user.name = name;
   if (phone) user.phone = phone;

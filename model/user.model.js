@@ -3,30 +3,40 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new Schema(
   {
-    name: { type: String },
+    name: { type: String, trim: true, required: true, index: true },
     email: {
       type: String,
+      required: true,
       trim: true,
       lowercase: true,
       unique: true,
-      sparse: true,
-      validator: {
-        validator: function (value) {
+      validate: {
+        validator(value) {
           return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
         },
+        message: "Invalid email format",
       },
     },
-    password: { type: String, required: true, select: false },
+    password: { type: String, required: true, minlength: 6, select: false },
     role: {
       type: String,
       enum: ["client", "manager", "admin"],
-      default: "admin",
+      default: "client",
       index: true,
     },
     avatar: {
       public_id: { type: String, default: "" },
       url: { type: String, default: "" },
     },
+    phone: { type: String, trim: true, default: "" },
+    address: { type: String, trim: true, default: "" },
+    bio: { type: String, trim: true, default: "" },
+    assignedProjects: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Project",
+      },
+    ],
     otp: {
       hash: { type: String, default: "" },
       expiresAt: { type: Date, default: null },
@@ -40,9 +50,12 @@ const userSchema = new Schema(
     password_reset_token: { type: String, default: "" },
     refreshToken: { type: String, default: "" },
     isEmailVerified: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true, index: true },
   },
   { timestamps: true },
 );
+
+userSchema.index({ role: 1, createdAt: -1 });
 
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {

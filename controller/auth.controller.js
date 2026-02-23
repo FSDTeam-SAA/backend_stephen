@@ -5,7 +5,6 @@ import {
   generateOTP,
   hashOTP,
   isOtpExpired,
-  sendOTP,
 } from "../utils/commonMethod.js";
 import httpStatus from "http-status";
 import sendResponse from "../utils/sendResponse.js";
@@ -13,7 +12,7 @@ import { sendEmail } from "../utils/sendEmail.js";
 import { User } from "./../model/user.model.js";
 
 export const register = catchAsync(async (req, res, next) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role } = req.body;
 
   if (!name || !email || !password) {
     return next(new AppError(400, "Name, email and password are required"));
@@ -25,10 +24,19 @@ export const register = catchAsync(async (req, res, next) => {
     return next(new AppError(409, "Email already registered"));
   }
 
+  const existingAdminCount = await User.countDocuments({ role: "admin" });
+  let resolvedRole = "client";
+  if (role === "admin" && existingAdminCount === 0) {
+    resolvedRole = "admin";
+  } else if (role === "manager") {
+    resolvedRole = "manager";
+  }
+
   const user = await User.create({
     name,
     email,
     password,
+    role: resolvedRole,
     isEmailVerified: true,
   });
 
@@ -233,6 +241,12 @@ export const verifyOTP = catchAsync(async (req, res, next) => {
   }
 
   user.isEmailVerified = true;
+  user.otp = {
+    hash: "",
+    expiresAt: null,
+    attempts: 0,
+    lastSentAt: null,
+  };
 
   await user.save();
 
@@ -258,11 +272,17 @@ export const changePassword = catchAsync(async (req, res) => {
       "Old password and new password cannot be same",
     );
   }
-  const user = await User.findById({ _id: req.user?._id });
+  const user = await User.findById({ _id: req.user?._id }).select("+password");
 
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, "User not found");
   }
+
+  const isPasswordMatched = await User.isPasswordMatched(oldPassword, user.password);
+  if (!isPasswordMatched) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Old password is incorrect");
+  }
+
   user.password = newPassword;
   await user.save();
   sendResponse(res, {

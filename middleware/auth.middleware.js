@@ -2,27 +2,38 @@ import jwt from "jsonwebtoken";
 import httpStatus from "http-status";
 import AppError from "../errors/AppError.js";
 import { User } from "./../model/user.model.js";
+import catchAsync from "../utils/catchAsync.js";
 
-export const protect = async (req, res, next) => {
+export const protect = catchAsync(async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
-  if (!token) throw new AppError(httpStatus.NOT_FOUND, "Token not found");
-
-  try {
-    const decoded = await jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    // console.log(decoded)
-    const user = await User.findById(decoded._id);
-    if (user) {
-      req.user = user;
-    }
-    next();
-  } catch (err) {
-    throw new AppError(401, "Invalid token");
+  if (!token) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Access token is required");
   }
-};
 
-export const isAdmin = (req, res, next) => {
-  if (req.user?.role !== "admin") {
-    throw new AppError(403, "Access denied. You are not an admin.");
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+  } catch (error) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "Invalid token");
+  }
+
+  const user = await User.findById(decoded._id);
+  if (!user || !user.isActive) {
+    throw new AppError(httpStatus.UNAUTHORIZED, "User not found or inactive");
+  }
+
+  req.user = user;
+  next();
+});
+
+export const allowRoles = (...roles) => (req, res, next) => {
+  if (!roles.includes(req.user?.role)) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      `Access denied. Requires role: ${roles.join(", ")}`,
+    );
   }
   next();
 };
+
+export const isAdmin = allowRoles("admin");

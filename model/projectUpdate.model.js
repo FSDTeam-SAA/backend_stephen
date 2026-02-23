@@ -1,4 +1,12 @@
-import { Schema, model } from "mongoose";
+import mongoose, { Schema, model } from "mongoose";
+
+const updateImageSchema = new Schema(
+  {
+    public_id: { type: String, default: "" },
+    url: { type: String, required: true },
+  },
+  { _id: false },
+);
 
 const projectUpdateSchema = new Schema(
   {
@@ -13,19 +21,16 @@ const projectUpdateSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
 
     description: {
       type: String,
       required: true,
+      trim: true,
     },
 
-    images: [
-      {
-        public_id: String,
-        url: String,
-      },
-    ],
+    images: [updateImageSchema],
 
     likes: [
       {
@@ -53,5 +58,11 @@ const projectUpdateSchema = new Schema(
 );
 
 projectUpdateSchema.index({ project: 1, createdAt: -1 });
+projectUpdateSchema.index({ uploadedBy: 1, createdAt: -1 });
+
+projectUpdateSchema.pre("save", function (next) {
+  this.stats.likeCount = this.likes.length;
+  next();
+});
 
 export const ProjectUpdate = model("ProjectUpdate", projectUpdateSchema);

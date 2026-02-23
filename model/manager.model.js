@@ -2,29 +2,16 @@ import { Schema, model } from "mongoose";
 
 const managerSchema = new Schema(
   {
-    name: {
-      type: String,
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-      trim: true,
       unique: true,
+      index: true,
     },
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      unique: true,
-      sparse: true,
-      validator: {
-        validator: function (value) {
-          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-        },
-        message: "Invalid email format",
-      },
-    },
-    photo: {
-      public_id: { type: String, default: "" },
-      url: { type: String, default: "" },
-    },
+    designation: { type: String, trim: true, default: "Site Manager" },
+    totalProjects: { type: Number, default: 0 },
+    activeProjects: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
