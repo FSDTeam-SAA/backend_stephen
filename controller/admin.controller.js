@@ -1,0 +1,333 @@
+import httpStatus from "http-status";
+import AppError from "../errors/AppError.js";
+import { User } from "../model/user.model.js";
+import { Project } from "../model/project.model.js";
+import { Manager } from "../model/manager.model.js";
+import catchAsync from "../utils/catchAsync.js";
+import sendResponse from "../utils/sendResponse.js";
+import { ensureChatRoom } from "../utils/chat.js";
+import { createNotification } from "../utils/notification.js";
+import { uploadOnCloudinary } from "../utils/commonMethod.js";
+
+const generateProjectCode = () =>
+  `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+
+export const createManager = catchAsync(async (req, res) => {
+  const { name, email, password, phone } = req.body;
+
+  if (!name || !email || !password) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Name, email and password are required",
+    );
+  }
+
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new AppError(httpStatus.CONFLICT, "Manager email already exists");
+  }
+
+  const uploaded = await uploadOnCloudinary(req.file.buffer, {
+    folder: "manager_avatars",
+  });
+
+  const managerUser = await User.create({
+    name,
+    email,
+    password,
+    avatar: {
+      public_id: uploaded.public_id,
+      url: uploaded.secure_url,
+    },
+    phone: phone || "",
+    role: "manager",
+    isEmailVerified: true,
+  });
+
+  await Manager.findOneAndUpdate(
+    { user: managerUser._id },
+    { user: managerUser._id },
+    { upsert: true, new: true },
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Manager created successfully",
+    data: {
+      _id: managerUser._id,
+      name: managerUser.name,
+      email: managerUser.email,
+      role: managerUser.role,
+    },
+  });
+});
+
+export const getManagers = catchAsync(async (req, res) => {
+  const managers = await User.find({ role: "manager", isActive: true })
+    .select("name email phone avatar assignedProjects createdAt")
+    .sort({ createdAt: -1 });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Managers fetched",
+    data: managers,
+  });
+});
+
+export const createProject = catchAsync(async (req, res) => {
+  const {
+    projectName,
+    category,
+    phases = [],
+    projectBudget,
+    startDate,
+    endDate,
+    address,
+    siteManagerId,
+    clientName,
+    clientEmail,
+    clientPassword,
+  } = req.body;
+
+  if (
+    !projectName ||
+    !category ||
+    !projectBudget ||
+    !startDate ||
+    !endDate ||
+    !address ||
+    !siteManagerId ||
+    !clientName ||
+    !clientEmail
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Missing required project fields",
+    );
+  }
+
+  if (Number.isNaN(Number(projectBudget))) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Project budget must be a valid number",
+    );
+  }
+
+  const numericProjectBudget = Number(projectBudget);
+
+  const manager = await User.findOne({ _id: siteManagerId, role: "manager" });
+  if (!manager) {
+    throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
+  }
+
+  const normalizedPhases = (phases || []).map((phase) => ({
+    phaseName: phase.phaseName,
+    amount: Number(phase.amount || 0),
+    dueDate: phase.dueDate || phase.paymentDate,
+    paymentStatus: phase.paymentStatus || "unpaid",
+    notes: phase.notes || "",
+  }));
+
+  let clientUser = await User.findOne({ email: clientEmail.toLowerCase() });
+  let isNewClient = false;
+
+  if (!clientUser) {
+    if (!clientPassword) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Client password is required when creating a new client account",
+      );
+    }
+
+    clientUser = await User.create({
+      name: clientName,
+      email: clientEmail,
+      password: clientPassword,
+      role: "client",
+      isEmailVerified: true,
+    });
+    isNewClient = true;
+  } else if (clientUser.role !== "client") {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Provided client email belongs to a non-client account",
+    );
+  }
+
+  const project = await Project.create({
+    projectCode: generateProjectCode(),
+    clientName,
+    clientEmail: clientEmail.toLowerCase(),
+    projectName,
+    category,
+    phases: normalizedPhases,
+    projectBudget: numericProjectBudget,
+    startDate,
+    endDate,
+    address,
+    siteManager: manager._id,
+    client: clientUser._id,
+    createdBy: req.user._id,
+  });
+
+  await Promise.all([
+    User.findByIdAndUpdate(manager._id, {
+      $addToSet: { assignedProjects: project._id },
+    }),
+    User.findByIdAndUpdate(clientUser._id, {
+      $addToSet: { assignedProjects: project._id },
+    }),
+  ]);
+
+  await ensureChatRoom({
+    entityId: project._id,
+    entityType: "Project",
+    participants: [req.user._id, manager._id, clientUser._id],
+    createdBy: req.user._id,
+    title: `${project.projectName} Group Chat`,
+  });
+
+  await Promise.all([
+    createNotification({
+      user: manager._id,
+      project: project._id,
+      title: "New Project Assigned",
+      message: `You have been assigned to project: ${project.projectName}`,
+      type: "task_assigned",
+    }),
+    createNotification({
+      user: clientUser._id,
+      project: project._id,
+      title: "Project Created",
+      message: `Your project "${project.projectName}" is now active`,
+      type: "task_assigned",
+    }),
+  ]);
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Project created successfully",
+    data: {
+      project,
+      clientAccount: {
+        isNewClient,
+        email: clientUser.email,
+      },
+    },
+  });
+});
+
+export const assignManagerToProject = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const { siteManagerId } = req.body;
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found");
+  }
+
+  const manager = await User.findOne({ _id: siteManagerId, role: "manager" });
+  if (!manager) {
+    throw new AppError(httpStatus.NOT_FOUND, "Manager not found");
+  }
+
+  const previousManager = project.siteManager?.toString();
+  project.siteManager = manager._id;
+  await project.save();
+
+  await User.findByIdAndUpdate(manager._id, {
+    $addToSet: { assignedProjects: project._id },
+  });
+  if (previousManager && previousManager !== manager._id.toString()) {
+    await User.findByIdAndUpdate(previousManager, {
+      $pull: { assignedProjects: project._id },
+    });
+  }
+
+  const groupChat = await ensureChatRoom({
+    entityId: project._id,
+    entityType: "Project",
+    participants: [project.createdBy, manager._id, project.client],
+    createdBy: project.createdBy,
+    title: `${project.projectName} Group Chat`,
+  });
+
+  groupChat.participants = [
+    ...new Set([
+      ...(groupChat.participants || []).map((id) => id.toString()),
+      manager._id.toString(),
+      project.client.toString(),
+      project.createdBy.toString(),
+    ]),
+  ];
+  await groupChat.save();
+
+  await createNotification({
+    user: manager._id,
+    project: project._id,
+    title: "Project Assignment Updated",
+    message: `You are now assigned to "${project.projectName}"`,
+    type: "task_assigned",
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Manager assigned successfully",
+    data: project,
+  });
+});
+
+export const getAllProjects = catchAsync(async (req, res) => {
+  const { status, search } = req.query;
+  const query = {};
+
+  if (status) {
+    query.projectStatus = status;
+  }
+
+  if (search) {
+    query.$text = { $search: search };
+  }
+
+  const projects = await Project.find(query)
+    .populate("siteManager", "name email")
+    .populate("client", "name email")
+    .sort({ createdAt: -1 });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Projects fetched",
+    data: projects,
+  });
+});
+
+export const getFinancialOverview = catchAsync(async (req, res) => {
+  const projects = await Project.find({}).select(
+    "projectName projectBudget totalPaid remainingBudget progress projectStatus",
+  );
+
+  const totals = projects.reduce(
+    (acc, project) => {
+      acc.totalBudget += Number(project.projectBudget || 0);
+      acc.totalPaid += Number(project.totalPaid || 0);
+      acc.remainingBalance += Number(project.remainingBudget || 0);
+      return acc;
+    },
+    { totalBudget: 0, totalPaid: 0, remainingBalance: 0 },
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Financial overview fetched",
+    data: {
+      totals,
+      projects,
+    },
+  });
+});
