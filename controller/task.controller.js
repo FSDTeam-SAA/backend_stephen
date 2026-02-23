@@ -41,7 +41,7 @@ export const createTask = catchAsync(async (req, res) => {
     dueDate: dueDate || null,
     description,
     priority: priority || "medium",
-    manager: project.manager,
+    manager: project.siteManager,
     client: project.client,
     admin: req.user._id,
     activities: [
@@ -126,16 +126,16 @@ export const getTaskDetails = catchAsync(async (req, res) => {
   });
 });
 
-export const updateTaskByAdmin = catchAsync(async (req, res) => {
-  if (req.user.role !== "admin") {
-    throw new AppError(httpStatus.FORBIDDEN, "Only admin can update task");
+export const updateTaskByManager = catchAsync(async (req, res) => {
+  if (req.user.role !== "manager") {
+    throw new AppError(httpStatus.FORBIDDEN, "Only manager can update task");
   }
 
   const { taskId } = req.params;
   const { taskName, description, status, priority, dueDate, taskDate } =
     req.body;
 
-  const task = await Task.findOne({ _id: taskId, admin: req.user._id });
+  const task = await Task.findOne({ _id: taskId, manager: req.user._id });
   if (!task) {
     throw new AppError(httpStatus.NOT_FOUND, "Task not found");
   }
@@ -310,6 +310,40 @@ export const rejectTask = catchAsync(async (req, res) => {
     statusCode: httpStatus.OK,
     success: true,
     message: "Task rejected and returned to manager",
+    data: task,
+  });
+});
+
+export const updateTaskStatus = catchAsync(async (req, res) => {
+  const { taskId } = req.params;
+  const { status } = req.body;
+
+  if (!["not-started", "in-progress", "completed"].includes(status)) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid status value");
+  }
+
+  const task = await Task.findOne({
+    _id: taskId,
+    $or: [{ manager: req.user._id }, { client: req.user._id }],
+  });
+
+  if (!task) {
+    throw new AppError(httpStatus.NOT_FOUND, "Task not found");
+  }
+
+  task.status = status;
+  task.activities.push({
+    action: "status_updated",
+    note: `Status changed to ${status}`,
+    actedBy: req.user._id,
+  });
+
+  await task.save();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Task status updated",
     data: task,
   });
 });
