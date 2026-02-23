@@ -8,12 +8,13 @@ import {
   getManagers,
 } from "../controller/admin.controller.js";
 import { isAdmin, protect } from "../middleware/auth.middleware.js";
+import upload from "../middleware/multer.middleware.js";
 
 const router = express.Router();
 
 router.use(protect, isAdmin);
 
-router.post("/managers", createManager);
+router.post("/managers", upload.single("avatar"), createManager);
 router.get("/managers", getManagers);
 
 router.post("/projects", createProject);
