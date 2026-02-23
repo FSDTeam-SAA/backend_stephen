@@ -7,6 +7,7 @@ import {
   rejectTask,
   resubmitTaskForApproval,
   updateTaskByManager,
+  updateTaskStatus,
 } from "../controller/task.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
@@ -21,5 +22,6 @@ router.patch("/:taskId", updateTaskByManager);
 router.patch("/:taskId/resubmit", resubmitTaskForApproval);
 router.patch("/:taskId/approve", approveTask);
 router.patch("/:taskId/reject", rejectTask);
+router.patch("/:taskId/status", updateTaskStatus);
 
 export default router;

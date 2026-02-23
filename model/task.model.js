@@ -75,7 +75,6 @@ const taskSchema = new Schema(
     manager: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
       index: true,
     },
     admin: {

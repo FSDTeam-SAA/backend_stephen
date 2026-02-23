@@ -59,6 +59,7 @@ export const createManager = catchAsync(async (req, res) => {
       name: managerUser.name,
       email: managerUser.email,
       role: managerUser.role,
+      avatar: managerUser.avatar,
     },
   });
 });
