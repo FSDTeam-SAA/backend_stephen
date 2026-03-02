@@ -1,11 +1,7 @@
 import AppError from "../errors/AppError.js";
 import { createToken, verifyToken } from "../utils/authToken.js";
 import catchAsync from "../utils/catchAsync.js";
-import {
-  generateOTP,
-  hashOTP,
-  isOtpExpired,
-} from "../utils/commonMethod.js";
+import { generateOTP, hashOTP, isOtpExpired } from "../utils/commonMethod.js";
 import httpStatus from "http-status";
 import sendResponse from "../utils/sendResponse.js";
 import { sendEmail } from "../utils/sendEmail.js";
@@ -54,16 +50,21 @@ export const register = catchAsync(async (req, res, next) => {
 });
 
 export const login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, category } = req.body;
 
-  if (!email || !password) {
-    return next(new AppError(400, "Email and password are required"));
+  if (!email || !password || !category) {
+    return next(new AppError(400, "Email, password and category are required"));
   }
 
   // Explicitly select password
   const user = await User.findOne({ email }).select("+password");
+
   if (!user) {
     return next(new AppError(404, "User not found"));
+  }
+
+  if (user?.category !== category) {
+    return next(new AppError(404, "Category mismatch"));
   }
 
   const isPasswordValid = await User.isPasswordMatched(password, user.password);
@@ -119,6 +120,7 @@ export const login = catchAsync(async (req, res, next) => {
       email: user.email,
       role: user.role,
       _id: user._id,
+      category: user.category,
     },
   });
 });
@@ -278,7 +280,10 @@ export const changePassword = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  const isPasswordMatched = await User.isPasswordMatched(oldPassword, user.password);
+  const isPasswordMatched = await User.isPasswordMatched(
+    oldPassword,
+    user.password,
+  );
   if (!isPasswordMatched) {
     throw new AppError(httpStatus.UNAUTHORIZED, "Old password is incorrect");
   }

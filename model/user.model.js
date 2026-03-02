@@ -24,6 +24,12 @@ const userSchema = new Schema(
       default: "client",
       index: true,
     },
+    category: {
+      type: String,
+      enum: ["construction", "interior"],
+      default: "construction",
+      index: true,
+    },
     avatar: {
       public_id: { type: String, default: "" },
       url: { type: String, default: "" },

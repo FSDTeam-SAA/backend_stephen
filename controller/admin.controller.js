@@ -13,9 +13,9 @@ const generateProjectCode = () =>
   `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
 
 export const createManager = catchAsync(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, email, password, phone, category } = req.body;
 
-  if (!name || !email || !password) {
+  if ((!name || !email || !password, !category)) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Name, email and password are required",
@@ -41,6 +41,7 @@ export const createManager = catchAsync(async (req, res) => {
     },
     phone: phone || "",
     role: "manager",
+    category,
     isEmailVerified: true,
   });
 
@@ -60,6 +61,8 @@ export const createManager = catchAsync(async (req, res) => {
       email: managerUser.email,
       role: managerUser.role,
       avatar: managerUser.avatar,
+      phone: managerUser.phone,
+      category: managerUser.category,
     },
   });
 });
@@ -147,6 +150,7 @@ export const createProject = catchAsync(async (req, res) => {
       email: clientEmail,
       password: clientPassword,
       role: "client",
+      category,
       isEmailVerified: true,
     });
     isNewClient = true;
@@ -216,6 +220,8 @@ export const createProject = catchAsync(async (req, res) => {
       clientAccount: {
         isNewClient,
         email: clientUser.email,
+        name: clientUser.name,
+        category: clientUser.category,
       },
     },
   });
