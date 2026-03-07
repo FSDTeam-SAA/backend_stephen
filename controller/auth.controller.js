@@ -52,8 +52,8 @@ export const register = catchAsync(async (req, res, next) => {
 export const login = catchAsync(async (req, res, next) => {
   const { email, password, category } = req.body;
 
-  if (!email || !password || !category) {
-    return next(new AppError(400, "Email, password and category are required"));
+  if (!email || !password) {
+    return next(new AppError(400, "Email, password are required"));
   }
 
   // Explicitly select password
