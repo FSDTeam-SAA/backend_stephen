@@ -26,8 +26,8 @@ const userSchema = new Schema(
     },
     category: {
       type: String,
-      enum: ["construction", "interior"],
-      default: "",
+      enum: ["construction", "interior", "normal"],
+      default: "normal",
       index: true,
     },
     avatar: {
