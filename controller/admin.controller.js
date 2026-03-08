@@ -12,6 +12,55 @@ import { uploadOnCloudinary } from "../utils/commonMethod.js";
 const generateProjectCode = () =>
   `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
 
+const normalizeProjectPhases = (phases = []) => {
+  if (!Array.isArray(phases) || phases.length === 0) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Add at least one phase to the project",
+    );
+  }
+
+  const normalizedPhases = phases.map((phase) => ({
+    phaseName: String(phase.phaseName || "").trim(),
+    amount: Number(phase.amount),
+    dueDate: phase.dueDate || phase.paymentDate,
+    paymentStatus: phase.paymentStatus || "unpaid",
+    notes: String(phase.notes || "").trim(),
+  }));
+
+  const uniquePhaseNames = new Set();
+  for (const phase of normalizedPhases) {
+    const normalizedPhaseName = phase.phaseName.toLowerCase();
+    const parsedDueDate = new Date(phase.dueDate);
+
+    if (
+      !phase.phaseName ||
+      Number.isNaN(phase.amount) ||
+      phase.amount < 0 ||
+      Number.isNaN(parsedDueDate.getTime())
+    ) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        "Each phase must include a unique name, valid amount, and valid payment date",
+      );
+    }
+
+    if (uniquePhaseNames.has(normalizedPhaseName)) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Phase names must be unique within a project",
+      );
+    }
+
+    uniquePhaseNames.add(normalizedPhaseName);
+  }
+
+  return normalizedPhases;
+};
+
+const calculateProjectBudget = (phases = []) =>
+  phases.reduce((sum, phase) => sum + Number(phase.amount || 0), 0);
+
 export const createManager = catchAsync(async (req, res) => {
   const { name, email, password, phone, category } = req.body;
 
@@ -85,7 +134,6 @@ export const createProject = catchAsync(async (req, res) => {
     projectName,
     category,
     phases = [],
-    projectBudget,
     startDate,
     endDate,
     address,
@@ -95,44 +143,31 @@ export const createProject = catchAsync(async (req, res) => {
     clientPassword,
   } = req.body;
 
-  if (
-    !projectName ||
-    !category ||
-    !projectBudget ||
-    !startDate ||
-    !endDate ||
-    !address ||
-    !siteManagerId ||
-    !clientName ||
-    !clientEmail
-  ) {
+  const missingFields = [
+    !String(projectName || "").trim() ? "projectName" : null,
+    !String(category || "").trim() ? "category" : null,
+    !String(startDate || "").trim() ? "startDate" : null,
+    !String(endDate || "").trim() ? "endDate" : null,
+    !String(address || "").trim() ? "address" : null,
+    !String(siteManagerId || "").trim() ? "siteManagerId" : null,
+    !String(clientName || "").trim() ? "clientName" : null,
+    !String(clientEmail || "").trim() ? "clientEmail" : null,
+  ].filter(Boolean);
+
+  if (missingFields.length > 0) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      "Missing required project fields",
+      `Missing required project fields: ${missingFields.join(", ")}`,
     );
   }
-
-  if (Number.isNaN(Number(projectBudget))) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      "Project budget must be a valid number",
-    );
-  }
-
-  const numericProjectBudget = Number(projectBudget);
 
   const manager = await User.findOne({ _id: siteManagerId, role: "manager" });
   if (!manager) {
     throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
   }
 
-  const normalizedPhases = (phases || []).map((phase) => ({
-    phaseName: phase.phaseName,
-    amount: Number(phase.amount || 0),
-    dueDate: phase.dueDate || phase.paymentDate,
-    paymentStatus: phase.paymentStatus || "unpaid",
-    notes: phase.notes || "",
-  }));
+  const normalizedPhases = normalizeProjectPhases(phases);
+  const numericProjectBudget = calculateProjectBudget(normalizedPhases);
 
   let clientUser = await User.findOne({ email: clientEmail.toLowerCase() });
   let isNewClient = false;
@@ -224,6 +259,121 @@ export const createProject = catchAsync(async (req, res) => {
         category: clientUser.category,
       },
     },
+  });
+});
+
+export const updateProject = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const {
+    clientName,
+    projectName,
+    category,
+    phases = [],
+    startDate,
+    endDate,
+    address,
+    siteManagerId,
+  } = req.body;
+
+  const missingFields = [
+    !String(clientName || "").trim() ? "clientName" : null,
+    !String(projectName || "").trim() ? "projectName" : null,
+    !String(category || "").trim() ? "category" : null,
+    !String(startDate || "").trim() ? "startDate" : null,
+    !String(endDate || "").trim() ? "endDate" : null,
+    !String(address || "").trim() ? "address" : null,
+    !String(siteManagerId || "").trim() ? "siteManagerId" : null,
+  ].filter(Boolean);
+
+  if (missingFields.length > 0) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Missing required project fields: ${missingFields.join(", ")}`,
+    );
+  }
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found");
+  }
+
+  const manager = await User.findOne({ _id: siteManagerId, role: "manager" });
+  if (!manager) {
+    throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
+  }
+
+  const normalizedPhases = normalizeProjectPhases(phases);
+  const previousManagerId = project.siteManager?.toString();
+
+  project.clientName = String(clientName).trim();
+  project.projectName = String(projectName).trim();
+  project.category = String(category).trim();
+  project.phases = normalizedPhases;
+  project.projectBudget = calculateProjectBudget(normalizedPhases);
+  project.startDate = startDate;
+  project.endDate = endDate;
+  project.address = String(address).trim();
+  project.siteManager = manager._id;
+
+  await project.save();
+
+  await Promise.all([
+    User.findByIdAndUpdate(manager._id, {
+      $addToSet: { assignedProjects: project._id },
+    }),
+    project.client
+      ? User.findByIdAndUpdate(project.client, {
+          $set: { name: project.clientName },
+          $addToSet: { assignedProjects: project._id },
+        })
+      : Promise.resolve(),
+  ]);
+
+  if (previousManagerId && previousManagerId !== manager._id.toString()) {
+    await User.findByIdAndUpdate(previousManagerId, {
+      $pull: { assignedProjects: project._id },
+    });
+  }
+
+  const groupChat = await ensureChatRoom({
+    entityId: project._id,
+    entityType: "Project",
+    participants: [project.createdBy, manager._id, project.client].filter(
+      Boolean,
+    ),
+    createdBy: project.createdBy,
+    title: `${project.projectName} Group Chat`,
+  });
+
+  groupChat.participants = [
+    ...new Set([
+      ...(groupChat.participants || []).map((id) => id.toString()),
+      manager._id.toString(),
+      project.createdBy.toString(),
+      project.client?.toString(),
+    ].filter(Boolean)),
+  ];
+  await groupChat.save();
+
+  if (previousManagerId && previousManagerId !== manager._id.toString()) {
+    await createNotification({
+      user: manager._id,
+      project: project._id,
+      title: "Project Assignment Updated",
+      message: `You are now assigned to "${project.projectName}"`,
+      type: "task_assigned",
+    });
+  }
+
+  const updatedProject = await Project.findById(project._id)
+    .populate("siteManager", "name email")
+    .populate("client", "name email");
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Project updated successfully",
+    data: updatedProject,
   });
 });
 

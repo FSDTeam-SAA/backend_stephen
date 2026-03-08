@@ -166,6 +166,63 @@ export const updatePhasePaymentStatus = catchAsync(async (req, res) => {
   });
 });
 
+export const addProjectPhase = catchAsync(async (req, res) => {
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin/manager can add project phases");
+  }
+
+  const { projectId } = req.params;
+  const { phaseName, amount, dueDate, paymentStatus = "unpaid", notes } = req.body;
+
+  const normalizedPhaseName = String(phaseName || "").trim();
+  const normalizedNotes = String(notes || "").trim();
+  const numericAmount = Number(amount);
+  const parsedDueDate = new Date(dueDate);
+
+  if (!normalizedPhaseName || Number.isNaN(numericAmount) || numericAmount < 0 || Number.isNaN(parsedDueDate.getTime())) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Phase name, amount, and valid due date are required");
+  }
+
+  if (!["paid", "unpaid"].includes(paymentStatus)) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid payment status");
+  }
+
+  const project = await getProjectForUser(projectId, req.user);
+  const duplicatePhase = project.phases.some(
+    (item) => item.phaseName.trim().toLowerCase() === normalizedPhaseName.toLowerCase(),
+  );
+
+  if (duplicatePhase) {
+    throw new AppError(httpStatus.CONFLICT, "Phase already exists in project");
+  }
+
+  project.phases.push({
+    phaseName: normalizedPhaseName,
+    amount: numericAmount,
+    dueDate: parsedDueDate,
+    paymentStatus,
+    paidAt: paymentStatus === "paid" ? new Date() : null,
+    notes: normalizedNotes,
+  });
+
+  await project.save();
+
+  await createNotification({
+    user: project.client,
+    project: project._id,
+    title: "New Project Phase Added",
+    message: `${normalizedPhaseName} phase was added to ${project.projectName}`,
+    type: "payment_reminder",
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Project phase created",
+    data: project,
+  });
+});
+
 export const getProjectFinancialSummary = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const project = await getProjectForUser(projectId, req.user);

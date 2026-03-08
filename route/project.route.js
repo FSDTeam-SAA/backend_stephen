@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  addProjectPhase,
   addProjectProgressUpdate,
   getProjectDetails,
   getProjectFinancialSummary,
@@ -17,6 +18,7 @@ router.get("/", getProjects);
 router.get("/:projectId", getProjectDetails);
 router.patch("/:projectId/status", updateProjectStatus);
 router.post("/:projectId/progress", addProjectProgressUpdate);
+router.post("/:projectId/phases", addProjectPhase);
 router.patch("/:projectId/phase-payment", updatePhasePaymentStatus);
 router.get("/:projectId/financial-summary", getProjectFinancialSummary);
 

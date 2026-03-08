@@ -315,6 +315,10 @@ export const rejectTask = catchAsync(async (req, res) => {
 });
 
 export const updateTaskStatus = catchAsync(async (req, res) => {
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin or manager can update task status");
+  }
+
   const { taskId } = req.params;
   const { status } = req.body;
 
@@ -324,7 +328,10 @@ export const updateTaskStatus = catchAsync(async (req, res) => {
 
   const task = await Task.findOne({
     _id: taskId,
-    $or: [{ manager: req.user._id }, { client: req.user._id }],
+    $or:
+      req.user.role === "admin"
+        ? [{ admin: req.user._id }]
+        : [{ manager: req.user._id }],
   });
 
   if (!task) {
