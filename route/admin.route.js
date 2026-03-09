@@ -3,6 +3,7 @@ import {
   assignManagerToProject,
   createManager,
   createProject,
+  deleteManager,
   getAllProjects,
   getFinancialOverview,
   getManagers,
@@ -17,6 +18,7 @@ router.use(protect, isAdmin);
 
 router.post("/managers", upload.single("avatar"), createManager);
 router.get("/managers", getManagers);
+router.delete("/managers/:managerId", deleteManager);
 
 router.post("/projects", createProject);
 router.get("/projects", getAllProjects);

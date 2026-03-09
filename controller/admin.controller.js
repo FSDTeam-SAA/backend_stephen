@@ -12,48 +12,62 @@ import { uploadOnCloudinary } from "../utils/commonMethod.js";
 const generateProjectCode = () =>
   `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
 
-const normalizeProjectPhases = (phases = []) => {
+const normalizeProjectPhases = (phases = [], phase1 = []) => {
+  console.log(phase1)
   if (!Array.isArray(phases) || phases.length === 0) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      "Add at least one phase to the project",
+      "Add at least one phase to the project"
     );
   }
 
-  const normalizedPhases = phases.map((phase) => ({
-    phaseName: String(phase.phaseName || "").trim(),
-    amount: Number(phase.amount),
-    dueDate: phase.dueDate || phase.paymentDate,
-    paymentStatus: phase.paymentStatus || "unpaid",
-    notes: String(phase.notes || "").trim(),
-  }));
-
   const uniquePhaseNames = new Set();
-  for (const phase of normalizedPhases) {
-    const normalizedPhaseName = phase.phaseName.toLowerCase();
-    const parsedDueDate = new Date(phase.dueDate);
+
+  const normalizedPhases = phases.map((phase, index) => {
+    const previousPhase = phase1[index];
+
+    const phaseName = String(phase.phaseName || "").trim();
+    const amount = Number(phase.amount);
+
+    const dueDate =
+      previousPhase?.dueDate || phase.dueDate || phase.paymentDate;
+
+    const paymentStatus =
+      previousPhase?.paymentStatus || phase.paymentStatus || "unpaid";
+
+    const parsedDueDate = new Date(dueDate);
 
     if (
-      !phase.phaseName ||
-      Number.isNaN(phase.amount) ||
-      phase.amount < 0 ||
+      !phaseName ||
+      Number.isNaN(amount) ||
+      amount < 0 ||
       Number.isNaN(parsedDueDate.getTime())
     ) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
-        "Each phase must include a unique name, valid amount, and valid payment date",
+        "Each phase must include a valid name, amount, and payment date"
       );
     }
 
-    if (uniquePhaseNames.has(normalizedPhaseName)) {
+    const normalizedName = phaseName.toLowerCase();
+
+    if (uniquePhaseNames.has(normalizedName)) {
       throw new AppError(
         httpStatus.CONFLICT,
-        "Phase names must be unique within a project",
+        "Phase names must be unique within a project"
       );
     }
 
-    uniquePhaseNames.add(normalizedPhaseName);
-  }
+    uniquePhaseNames.add(normalizedName);
+
+    return {
+      phaseName,
+      amount,
+      dueDate,
+      paymentStatus,
+      notes: String(phase.notes || "").trim(),
+    };
+  });
 
   return normalizedPhases;
 };
@@ -126,6 +140,37 @@ export const getManagers = catchAsync(async (req, res) => {
     success: true,
     message: "Managers fetched",
     data: managers,
+  });
+});
+
+export const deleteManager = catchAsync(async (req, res) => {
+  const { managerId } = req.params;
+
+  const manager = await User.findOne({
+    _id: managerId,
+    role: "manager",
+    isActive: true,
+  });
+
+  if (!manager) {
+    throw new AppError(httpStatus.NOT_FOUND, "Manager not found");
+  }
+
+  await Promise.all([
+    User.findByIdAndUpdate(managerId, {
+      $set: {
+        isActive: false,
+        refreshToken: "",
+      },
+    }),
+    Manager.deleteOne({ user: managerId }),
+  ]);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Manager deleted successfully",
+    data: null,
   });
 });
 
@@ -302,7 +347,7 @@ export const updateProject = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
   }
 
-  const normalizedPhases = normalizeProjectPhases(phases);
+  const normalizedPhases = normalizeProjectPhases(phases,project.phases);
   const previousManagerId = project.siteManager?.toString();
 
   project.clientName = String(clientName).trim();
@@ -439,7 +484,7 @@ export const assignManagerToProject = catchAsync(async (req, res) => {
 });
 
 export const getAllProjects = catchAsync(async (req, res) => {
-  const { status, search } = req.query;
+  const { status, search, manager } = req.query;
   const query = {};
 
   if (status) {
@@ -448,6 +493,10 @@ export const getAllProjects = catchAsync(async (req, res) => {
 
   if (search) {
     query.$text = { $search: search };
+  }
+
+  if (manager) {
+    query.siteManager = manager;
   }
 
   const projects = await Project.find(query)
@@ -464,9 +513,7 @@ export const getAllProjects = catchAsync(async (req, res) => {
 });
 
 export const getFinancialOverview = catchAsync(async (req, res) => {
-  const projects = await Project.find({}).select(
-    "projectName projectBudget totalPaid remainingBudget progress projectStatus",
-  );
+  const projects = await Project.find({}).populate("client")
 
   const totals = projects.reduce(
     (acc, project) => {
