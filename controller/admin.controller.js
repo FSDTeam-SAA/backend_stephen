@@ -76,13 +76,23 @@ const calculateProjectBudget = (phases = []) =>
   phases.reduce((sum, phase) => sum + Number(phase.amount || 0), 0);
 
 export const createManager = catchAsync(async (req, res) => {
-  const { name, email, password, phone, category } = req.body;
+  const name = String(req.body.name || "").trim();
+  const email = String(req.body.email || "")
+    .trim()
+    .toLowerCase();
+  const password = String(req.body.password || "");
+  const phone = String(req.body.phone || "").trim();
+  const category = String(req.body.category || "normal").trim() || "normal";
 
-  if ((!name || !email || !password, !category)) {
+  if (!name || !email || !password) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Name, email and password are required",
     );
+  }
+
+  if (!["construction", "interior", "normal"].includes(category)) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid manager category");
   }
 
   const existingUser = await User.findOne({ email });
@@ -90,18 +100,22 @@ export const createManager = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.CONFLICT, "Manager email already exists");
   }
 
-  const uploaded = await uploadOnCloudinary(req.file.buffer, {
-    folder: "manager_avatars",
-  });
+  let avatar = { public_id: "", url: "" };
+  if (req.file?.buffer) {
+    const uploaded = await uploadOnCloudinary(req.file.buffer, {
+      folder: "manager_avatars",
+    });
+    avatar = {
+      public_id: uploaded.public_id,
+      url: uploaded.secure_url,
+    };
+  }
 
   const managerUser = await User.create({
     name,
     email,
     password,
-    avatar: {
-      public_id: uploaded.public_id,
-      url: uploaded.secure_url,
-    },
+    avatar,
     phone: phone || "",
     role: "manager",
     category,
