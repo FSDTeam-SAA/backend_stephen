@@ -1,5 +1,12 @@
 import { Schema, model } from "mongoose";
 
+export const DOCUMENT_CATEGORIES = [
+  "drawings",
+  "invoices",
+  "reports",
+  "contracts",
+];
+
 const documentSchema = new Schema(
   {
     project: {
@@ -10,7 +17,9 @@ const documentSchema = new Schema(
     },
     category: {
       type: String,
-      enum: ["drawings", "invoices", "reports", "contracts"],
+      enum: DOCUMENT_CATEGORIES,
+      trim: true,
+      lowercase: true,
       required: true,
       index: true,
     },

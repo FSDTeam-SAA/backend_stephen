@@ -59,6 +59,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("joinProjectRoom", (projectId) => {
+    if (projectId) {
+      socket.join(`project_${projectId}`);
+      console.log(`Client ${socket.id} joined project room: ${projectId}`);
+    }
+  });
+
   socket.on("typing", ({ chatId, userId }) => {
     if (chatId && userId) {
       socket.to(`chat_${chatId}`).emit("chat:typing", { chatId, userId });

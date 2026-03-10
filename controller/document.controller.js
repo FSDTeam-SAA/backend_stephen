@@ -1,12 +1,29 @@
 import httpStatus from "http-status";
 import AppError from "../errors/AppError.js";
-import { Document } from "../model/document.model.js";
+import { DOCUMENT_CATEGORIES, Document } from "../model/document.model.js";
 import { Project } from "../model/project.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { uploadOnCloudinary } from "../utils/commonMethod.js";
 import { getProjectForUser } from "../utils/projectAccess.js";
 import { createNotification } from "../utils/notification.js";
+import { getIO } from "../utils/socket.js";
+
+const DOCUMENT_CATEGORY_ALIASES = {
+  drawing: "drawings",
+  drawings: "drawings",
+  invoice: "invoices",
+  invoices: "invoices",
+  report: "reports",
+  reports: "reports",
+  contract: "contracts",
+  contracts: "contracts",
+};
+
+const normalizeDocumentCategory = (value) => {
+  const key = String(value || "").trim().toLowerCase();
+  return DOCUMENT_CATEGORY_ALIASES[key] || key;
+};
 
 export const uploadProjectDocument = catchAsync(async (req, res) => {
   if (req.user.role !== "admin") {
@@ -14,10 +31,18 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
   }
 
   const { projectId, category, title } = req.body;
+  const normalizedCategory = normalizeDocumentCategory(category);
+
   if (!projectId || !category || !title || !req.file) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Project, category, title and file are required",
+    );
+  }
+  if (!DOCUMENT_CATEGORIES.includes(normalizedCategory)) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      `Invalid document category. Allowed values: ${DOCUMENT_CATEGORIES.join(", ")}`,
     );
   }
 
@@ -35,7 +60,7 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
 
   const document = await Document.create({
     project: project._id,
-    category,
+    category: normalizedCategory,
     title,
     uploadedBy: req.user._id,
     document: {
@@ -54,23 +79,38 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
       user: project.client,
       project: project._id,
       title: "New Document Uploaded",
-      message: `${title} added under ${category}`,
+      message: `${title} added under ${normalizedCategory}`,
       type: "new_document",
     }),
     createNotification({
       user: project.createdBy,
       project: project._id,
       title: "New Document Uploaded",
-      message: `${title} added under ${category}`,
+      message: `${title} added under ${normalizedCategory}`,
       type: "new_document",
     }),
   ]);
+
+  const populatedDocument = await Document.findById(document._id).populate(
+    "uploadedBy",
+    "name email avatar role",
+  );
+
+  try {
+    const io = getIO();
+    io.to(`project_${project._id}`).emit(
+      "project:documentUploaded",
+      populatedDocument,
+    );
+  } catch (error) {
+    console.error("Error emitting project:documentUploaded:", error);
+  }
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
     message: "Document uploaded successfully",
-    data: document,
+    data: populatedDocument || document,
   });
 });
 
@@ -81,7 +121,14 @@ export const getProjectDocuments = catchAsync(async (req, res) => {
 
   const query = { project: projectId };
   if (category) {
-    query.category = category;
+    const normalizedCategory = normalizeDocumentCategory(category);
+    if (!DOCUMENT_CATEGORIES.includes(normalizedCategory)) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Invalid document category. Allowed values: ${DOCUMENT_CATEGORIES.join(", ")}`,
+      );
+    }
+    query.category = normalizedCategory;
   }
 
   const documents = await Document.find(query)

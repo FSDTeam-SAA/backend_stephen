@@ -55,7 +55,7 @@ export const getOrCreateTaskChat = catchAsync(async (req, res) => {
   const chat = await ensureChatRoom({
     entityId: task._id,
     entityType: "Task",
-    participants: [task.manager, task.client],
+    participants: [task.manager, task.client, req.user._id],
     createdBy: task.manager,
     title: `${task.taskName} Discussion`,
   });
@@ -75,7 +75,12 @@ export const getOrCreateProjectChat = catchAsync(async (req, res) => {
   const chat = await ensureChatRoom({
     entityId: project._id,
     entityType: "Project",
-    participants: [project.createdBy, project.siteManager, project.client],
+    participants: [
+      project.createdBy,
+      project.siteManager,
+      project.client,
+      req.user._id,
+    ],
     createdBy: project.createdBy,
     title: `${project.projectName} Group Chat`,
   });
@@ -117,8 +122,9 @@ export const getChatMessages = catchAsync(async (req, res) => {
 export const sendMessage = catchAsync(async (req, res) => {
   const { chatId } = req.params;
   const { message } = req.body;
+  const trimmedMessage = String(message || "").trim();
 
-  if (!message) {
+  if (!trimmedMessage) {
     throw new AppError(httpStatus.BAD_REQUEST, "Message is required");
   }
 
@@ -131,11 +137,11 @@ export const sendMessage = catchAsync(async (req, res) => {
   const newMessage = await Message.create({
     chatRoom: chat._id,
     sender: req.user._id,
-    message,
+    message: trimmedMessage,
   });
 
   chat.lastMessage = {
-    message,
+    message: trimmedMessage,
     sender: req.user._id,
     at: new Date(),
   };
@@ -159,7 +165,7 @@ export const sendMessage = catchAsync(async (req, res) => {
         user: recipientId,
         chat: chat._id,
         title: "New Message",
-        message: `${req.user.name}: ${message.substring(0, 120)}`,
+        message: `${req.user.name}: ${trimmedMessage.substring(0, 120)}`,
         type: "chat_message",
       }),
     ),

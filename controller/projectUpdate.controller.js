@@ -8,6 +8,7 @@ import sendResponse from "../utils/sendResponse.js";
 import { uploadOnCloudinary } from "../utils/commonMethod.js";
 import { getProjectForUser } from "../utils/projectAccess.js";
 import { createNotification } from "../utils/notification.js";
+import { getIO } from "../utils/socket.js";
 
 export const createProjectUpdate = catchAsync(async (req, res) => {
   if (req.user.role !== "manager") {
@@ -61,6 +62,18 @@ export const createProjectUpdate = catchAsync(async (req, res) => {
     }),
   ]);
 
+  try {
+    const io = getIO();
+    io.to(`project_${project._id}`).emit("project:updateCreated", {
+      projectId: project._id,
+      updateId: update._id,
+      createdBy: req.user._id,
+      createdAt: update.createdAt,
+    });
+  } catch (error) {
+    console.error("Error emitting project:updateCreated:", error);
+  }
+
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
@@ -105,6 +118,19 @@ export const toggleUpdateLike = catchAsync(async (req, res) => {
 
   update.stats.likeCount = update.likes.length;
   await update.save();
+
+  try {
+    const io = getIO();
+    io.to(`project_${update.project.toString()}`).emit("project:updateLiked", {
+      projectId: update.project,
+      updateId: update._id,
+      likeCount: update.stats.likeCount,
+      likedBy: req.user._id,
+      liked: !alreadyLiked,
+    });
+  } catch (error) {
+    console.error("Error emitting project:updateLiked:", error);
+  }
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -167,6 +193,19 @@ export const addUpdateComment = catchAsync(async (req, res) => {
       message: `${req.user.name} commented on an update`,
       type: "site_update",
     });
+  }
+
+  try {
+    const io = getIO();
+    io.to(`project_${project._id}`).emit("project:updateCommented", {
+      projectId: project._id,
+      updateId: update._id,
+      commentId: createdComment._id,
+      commentedBy: req.user._id,
+      commentCount: update.stats.commentCount,
+    });
+  } catch (error) {
+    console.error("Error emitting project:updateCommented:", error);
   }
 
   sendResponse(res, {
