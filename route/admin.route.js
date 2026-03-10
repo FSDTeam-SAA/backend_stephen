@@ -20,9 +20,9 @@ router.post("/managers", upload.single("avatar"), createManager);
 router.get("/managers", getManagers);
 router.delete("/managers/:managerId", deleteManager);
 
-router.post("/projects", createProject);
+router.post("/projects", upload.array("images", 10), createProject);
 router.get("/projects", getAllProjects);
-router.patch("/projects/:projectId", updateProject);
+router.patch("/projects/:projectId", upload.array("images", 10), updateProject);
 router.patch("/projects/:projectId/assign-manager", assignManagerToProject);
 
 router.get("/financial-overview", getFinancialOverview);

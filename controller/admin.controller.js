@@ -7,13 +7,12 @@ import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { ensureChatRoom } from "../utils/chat.js";
 import { createNotification } from "../utils/notification.js";
-import { uploadOnCloudinary } from "../utils/commonMethod.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/commonMethod.js";
 
 const generateProjectCode = () =>
   `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
 
 const normalizeProjectPhases = (phases = [], phase1 = []) => {
-  console.log(phase1)
   if (!Array.isArray(phases) || phases.length === 0) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
@@ -74,6 +73,46 @@ const normalizeProjectPhases = (phases = [], phase1 = []) => {
 
 const calculateProjectBudget = (phases = []) =>
   phases.reduce((sum, phase) => sum + Number(phase.amount || 0), 0);
+
+const parsePhasesInput = (value) => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid phases payload");
+  }
+};
+
+const parseStringArrayInput = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item).trim()).filter(Boolean);
+    }
+  } catch {
+    return [raw];
+  }
+
+  return [];
+};
 
 export const createManager = catchAsync(async (req, res) => {
   const name = String(req.body.name || "").trim();
@@ -192,7 +231,7 @@ export const createProject = catchAsync(async (req, res) => {
   const {
     projectName,
     category,
-    phases = [],
+    phases: rawPhases,
     startDate,
     endDate,
     address,
@@ -225,8 +264,22 @@ export const createProject = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
   }
 
+  const phases = parsePhasesInput(rawPhases);
   const normalizedPhases = normalizeProjectPhases(phases);
   const numericProjectBudget = calculateProjectBudget(normalizedPhases);
+
+  const files = Array.isArray(req.files) ? req.files : [];
+  const uploadedProjectImages = await Promise.all(
+    files.map(async (file) => {
+      const uploaded = await uploadOnCloudinary(file.buffer, {
+        folder: "project_images",
+      });
+      return {
+        public_id: uploaded.public_id,
+        url: uploaded.secure_url,
+      };
+    }),
+  );
 
   let clientUser = await User.findOne({ email: clientEmail.toLowerCase() });
   let isNewClient = false;
@@ -266,6 +319,7 @@ export const createProject = catchAsync(async (req, res) => {
     startDate,
     endDate,
     address,
+    images: uploadedProjectImages,
     siteManager: manager._id,
     client: clientUser._id,
     createdBy: req.user._id,
@@ -327,7 +381,7 @@ export const updateProject = catchAsync(async (req, res) => {
     clientName,
     projectName,
     category,
-    phases = [],
+    phases: rawPhases,
     startDate,
     endDate,
     address,
@@ -361,7 +415,8 @@ export const updateProject = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
   }
 
-  const normalizedPhases = normalizeProjectPhases(phases,project.phases);
+  const phases = parsePhasesInput(rawPhases);
+  const normalizedPhases = normalizeProjectPhases(phases, project.phases);
   const previousManagerId = project.siteManager?.toString();
 
   project.clientName = String(clientName).trim();
@@ -373,6 +428,41 @@ export const updateProject = catchAsync(async (req, res) => {
   project.endDate = endDate;
   project.address = String(address).trim();
   project.siteManager = manager._id;
+
+  const removedImagePublicIds = parseStringArrayInput(
+    req.body.removedImagePublicIds,
+  );
+  if (removedImagePublicIds.length > 0) {
+    const removableSet = new Set(removedImagePublicIds);
+    const imagesToDelete = (project.images || []).filter((image) =>
+      removableSet.has(String(image.public_id || "")),
+    );
+
+    project.images = (project.images || []).filter(
+      (image) => !removableSet.has(String(image.public_id || "")),
+    );
+
+    await Promise.all(
+      imagesToDelete.map((image) => deleteFromCloudinary(image.public_id)),
+    );
+  }
+
+  const files = Array.isArray(req.files) ? req.files : [];
+  if (files.length > 0) {
+    const uploadedProjectImages = await Promise.all(
+      files.map(async (file) => {
+        const uploaded = await uploadOnCloudinary(file.buffer, {
+          folder: "project_images",
+        });
+        return {
+          public_id: uploaded.public_id,
+          url: uploaded.secure_url,
+        };
+      }),
+    );
+
+    project.images = [...(project.images || []), ...uploadedProjectImages];
+  }
 
   await project.save();
 

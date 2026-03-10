@@ -17,6 +17,14 @@ const phaseSchema = new Schema(
   { _id: false },
 );
 
+const projectImageSchema = new Schema(
+  {
+    public_id: { type: String, default: "" },
+    url: { type: String, required: true },
+  },
+  { _id: false },
+);
+
 const progressUpdateSchema = new Schema(
   {
     progressName: { type: String, required: true, trim: true },
@@ -89,6 +97,7 @@ const projectSchema = new Schema(
       type: String,
       required: true,
     },
+    images: [projectImageSchema],
     projectStatus: {
       type: String,
       enum: ["active", "finished"],

@@ -1,6 +1,6 @@
 import httpStatus from "http-status";
 import { User } from "../model/user.model.js";
-import { uploadOnCloudinary } from "../utils/commonMethod.js";
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/commonMethod.js";
 import AppError from "../errors/AppError.js";
 import sendResponse from "../utils/sendResponse.js";
 import catchAsync from "../utils/catchAsync.js";
@@ -18,7 +18,7 @@ export const getProfile = catchAsync(async (req, res) => {
 });
 
 export const updateProfile = catchAsync(async (req, res) => {
-  const { name, phone, address, bio } = req.body;
+  const { name, phone, address, bio, removeAvatar } = req.body;
 
   const user = await User.findById(req.user._id).select(
     "-password -refreshToken -verificationInfo -password_reset_token -otp",
@@ -30,8 +30,17 @@ export const updateProfile = catchAsync(async (req, res) => {
   if (bio) user.bio = bio;
 
   if (req.file) {
-    const upload = await uploadOnCloudinary(req.file.buffer);
+    const previousPublicId = user.avatar?.public_id;
+    const upload = await uploadOnCloudinary(req.file.buffer, {
+      folder: "user_avatars",
+    });
     user.avatar = { public_id: upload.public_id, url: upload.secure_url };
+    if (previousPublicId) {
+      await deleteFromCloudinary(previousPublicId);
+    }
+  } else if (String(removeAvatar || "").toLowerCase() === "true" && user.avatar?.public_id) {
+    await deleteFromCloudinary(user.avatar.public_id);
+    user.avatar = { public_id: "", url: "" };
   }
 
   await user.save();
