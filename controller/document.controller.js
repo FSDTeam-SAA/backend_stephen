@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import httpStatus from "http-status";
 import AppError from "../errors/AppError.js";
 import { DOCUMENT_CATEGORIES, Document } from "../model/document.model.js";
@@ -135,10 +136,46 @@ export const getProjectDocuments = catchAsync(async (req, res) => {
     .populate("uploadedBy", "name email")
     .sort({ createdAt: -1 });
 
+  const countsByCategory = DOCUMENT_CATEGORIES.reduce((acc, item) => {
+    acc[item] = 0;
+    return acc;
+  }, {});
+
+  const groupedDocuments = DOCUMENT_CATEGORIES.reduce((acc, item) => {
+    acc[item] = [];
+    return acc;
+  }, {});
+
+  const totals = await Document.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: { _id: "$category", count: { $sum: 1 } } },
+  ]);
+
+  for (const row of totals) {
+    if (row?._id && Object.prototype.hasOwnProperty.call(countsByCategory, row._id)) {
+      countsByCategory[row._id] = row.count;
+    }
+  }
+
+  for (const doc of documents) {
+    if (groupedDocuments[doc.category]) {
+      groupedDocuments[doc.category].push(doc);
+    }
+  }
+
+  const totalCount = Object.values(countsByCategory).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Documents fetched",
-    data: documents,
+    data: {
+      totalCount,
+      counts: countsByCategory,
+      documents: groupedDocuments,
+    },
   });
 });
