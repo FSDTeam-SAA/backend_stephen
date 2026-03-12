@@ -20,8 +20,11 @@ export const io = initSocket(server);
 app.use(
   cors({
     credentials: true,
-    origin: "*",
+    origin: process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
+      : true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    exposedHeaders: ["x-access-token", "access-token-refreshed"],
   })
 );
 

@@ -7,6 +7,31 @@ import sendResponse from "../utils/sendResponse.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { User } from "./../model/user.model.js";
 
+const getRefreshTokenFromRequest = (req) => {
+  const refreshTokenFromBody = req.body?.refreshToken;
+  const refreshTokenFromCookie = req.cookies?.refreshToken;
+  const refreshTokenFromHeader = req.headers["x-refresh-token"];
+  const refreshTokenFromAuthorization = req.headers.authorization?.startsWith(
+    "Bearer ",
+  )
+    ? req.headers.authorization.split(" ")[1]
+    : undefined;
+
+  return (
+    refreshTokenFromBody ||
+    refreshTokenFromCookie ||
+    refreshTokenFromHeader ||
+    refreshTokenFromAuthorization
+  );
+};
+
+const getRefreshCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "none",
+  maxAge: 1000 * 60 * 60 * 24 * 365,
+});
+
 export const register = catchAsync(async (req, res, next) => {
   const { name, email, password, role } = req.body;
 
@@ -102,12 +127,7 @@ export const login = catchAsync(async (req, res, next) => {
   await user.save();
 
   // Secure cookie
-  res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "none",
-    maxAge: 1000 * 60 * 60 * 24 * 365,
-  });
+  res.cookie("refreshToken", refreshToken, getRefreshCookieOptions());
 
   sendResponse(res, {
     statusCode: 200,
@@ -299,15 +319,21 @@ export const changePassword = catchAsync(async (req, res) => {
 });
 
 export const refreshToken = catchAsync(async (req, res) => {
-  const { refreshToken } = req.body;
+  const refreshToken = getRefreshTokenFromRequest(req);
 
   if (!refreshToken) {
     throw new AppError(400, "Refresh token is required");
   }
 
-  const decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
+  let decoded;
+  try {
+    decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
+  } catch (error) {
+    throw new AppError(401, "Invalid refresh token");
+  }
+
   const user = await User.findById(decoded._id);
-  if (!user || user.refreshToken !== refreshToken) {
+  if (!user || !user.isActive || user.refreshToken !== refreshToken) {
     throw new AppError(401, "Invalid refresh token");
   }
   const jwtPayload = {
@@ -329,6 +355,7 @@ export const refreshToken = catchAsync(async (req, res) => {
   );
   user.refreshToken = refreshToken1;
   await user.save();
+  res.cookie("refreshToken", refreshToken1, getRefreshCookieOptions());
 
   sendResponse(res, {
     statusCode: 200,
@@ -340,11 +367,12 @@ export const refreshToken = catchAsync(async (req, res) => {
 
 export const logout = catchAsync(async (req, res) => {
   const user = req.user?._id;
-  const user1 = await User.findByIdAndUpdate(
+  await User.findByIdAndUpdate(
     user,
     { refreshToken: "" },
     { new: true },
   );
+  res.clearCookie("refreshToken", getRefreshCookieOptions());
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
