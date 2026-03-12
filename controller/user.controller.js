@@ -1,6 +1,9 @@
 import httpStatus from "http-status";
 import { User } from "../model/user.model.js";
-import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/commonMethod.js";
+import {
+  deleteFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/commonMethod.js";
 import AppError from "../errors/AppError.js";
 import sendResponse from "../utils/sendResponse.js";
 import catchAsync from "../utils/catchAsync.js";
@@ -38,7 +41,10 @@ export const updateProfile = catchAsync(async (req, res) => {
     if (previousPublicId) {
       await deleteFromCloudinary(previousPublicId);
     }
-  } else if (String(removeAvatar || "").toLowerCase() === "true" && user.avatar?.public_id) {
+  } else if (
+    String(removeAvatar || "").toLowerCase() === "true" &&
+    user.avatar?.public_id
+  ) {
     await deleteFromCloudinary(user.avatar.public_id);
     user.avatar = { public_id: "", url: "" };
   }
