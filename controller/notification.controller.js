@@ -2,6 +2,7 @@ import httpStatus from "http-status";
 import { Notification } from "../model/notification.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
+import { getIO } from "../utils/socket.js";
 
 const startOfDay = (date) => {
   const d = new Date(date);
@@ -51,11 +52,23 @@ export const getMyNotifications = catchAsync(async (req, res) => {
 
 export const markNotificationRead = catchAsync(async (req, res) => {
   const { notificationId } = req.params;
-  await Notification.findOneAndUpdate(
+  const notification = await Notification.findOneAndUpdate(
     { _id: notificationId, user: req.user._id },
     { isRead: true, readAt: new Date() },
     { new: true },
   );
+
+  if (notification) {
+    try {
+      const io = getIO();
+      io.to(`user_${req.user._id}`).emit("notification:read", {
+        notificationId: notification._id,
+        readAt: notification.readAt,
+      });
+    } catch (error) {
+      // socket may not be initialized
+    }
+  }
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -70,6 +83,16 @@ export const markAllNotificationsRead = catchAsync(async (req, res) => {
     { user: req.user._id, isRead: false },
     { isRead: true, readAt: new Date() },
   );
+
+  try {
+    const io = getIO();
+    io.to(`user_${req.user._id}`).emit("notification:readAll", {
+      userId: req.user._id,
+      at: new Date(),
+    });
+  } catch (error) {
+    // socket may not be initialized
+  }
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

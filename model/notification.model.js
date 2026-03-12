@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { getIO } from "../utils/socket.js";
 
 const notificationSchema = new Schema(
   {
@@ -47,5 +48,24 @@ const notificationSchema = new Schema(
 );
 
 notificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
+
+const emitSocketNotification = (doc) => {
+  if (!doc?.user) return;
+  try {
+    const io = getIO();
+    io.to(`user_${doc.user.toString()}`).emit("notification:new", doc);
+  } catch (error) {
+    // socket may not be initialized
+  }
+};
+
+notificationSchema.post("save", function (doc) {
+  emitSocketNotification(doc);
+});
+
+notificationSchema.post("insertMany", function (docs) {
+  if (!Array.isArray(docs)) return;
+  docs.forEach((doc) => emitSocketNotification(doc));
+});
 
 export const Notification = mongoose.model("Notification", notificationSchema);
