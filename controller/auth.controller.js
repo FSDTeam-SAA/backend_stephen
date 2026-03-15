@@ -7,30 +7,51 @@ import sendResponse from "../utils/sendResponse.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { User } from "./../model/user.model.js";
 
-const getRefreshTokenFromRequest = (req) => {
-  const refreshTokenFromBody = req.body?.refreshToken;
-  const refreshTokenFromCookie = req.cookies?.refreshToken;
-  const refreshTokenFromHeader = req.headers["x-refresh-token"];
-  const refreshTokenFromAuthorization = req.headers.authorization?.startsWith(
-    "Bearer ",
-  )
-    ? req.headers.authorization.split(" ")[1]
-    : undefined;
+const normalizeToken = (tokenLike) => {
+  if (typeof tokenLike !== "string") {
+    return undefined;
+  }
 
-  return (
-    refreshTokenFromBody ||
-    refreshTokenFromCookie ||
-    refreshTokenFromHeader ||
-    refreshTokenFromAuthorization
-  );
+  const normalized = tokenLike.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.startsWith("Bearer ")) {
+    return normalized.split(" ")[1]?.trim();
+  }
+
+  return normalized;
 };
 
-const getRefreshCookieOptions = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "none",
-  maxAge: 1000 * 60 * 60 * 24 * 365,
-});
+const getRefreshTokensFromRequest = (req) => {
+  const refreshTokenFromCookie = normalizeToken(req.cookies?.refreshToken);
+  const refreshTokenFromBody = normalizeToken(req.body?.refreshToken);
+  const refreshTokenFromHeader = normalizeToken(req.headers["x-refresh-token"]);
+  const refreshTokenFromAuthorization = normalizeToken(req.headers.authorization);
+
+  return [
+    ...new Set(
+      [
+        refreshTokenFromCookie,
+        refreshTokenFromBody,
+        refreshTokenFromHeader,
+        refreshTokenFromAuthorization,
+      ].filter(Boolean),
+    ),
+  ];
+};
+
+const getRefreshCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge: 1000 * 60 * 60 * 24 * 365,
+  };
+};
 
 export const register = catchAsync(async (req, res, next) => {
   const { name, email, password, role } = req.body;
@@ -319,23 +340,39 @@ export const changePassword = catchAsync(async (req, res) => {
 });
 
 export const refreshToken = catchAsync(async (req, res) => {
-  const refreshToken = getRefreshTokenFromRequest(req);
+  const refreshTokens = getRefreshTokensFromRequest(req);
 
-  if (!refreshToken) {
+  if (!refreshTokens.length) {
     throw new AppError(400, "Refresh token is required");
   }
 
-  let decoded;
-  try {
-    decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
-  } catch (error) {
+  let user = null;
+
+  for (const refreshToken of refreshTokens) {
+    let decoded;
+    try {
+      decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
+    } catch (error) {
+      continue;
+    }
+
+    const candidateUser = await User.findById(decoded._id);
+    if (!candidateUser || !candidateUser.isActive) {
+      continue;
+    }
+
+    if (candidateUser.refreshToken !== refreshToken) {
+      continue;
+    }
+
+    user = candidateUser;
+    break;
+  }
+
+  if (!user) {
     throw new AppError(401, "Invalid refresh token");
   }
 
-  const user = await User.findById(decoded._id);
-  if (!user || !user.isActive || user.refreshToken !== refreshToken) {
-    throw new AppError(401, "Invalid refresh token");
-  }
   const jwtPayload = {
     _id: user._id,
     email: user.email,
@@ -348,20 +385,14 @@ export const refreshToken = catchAsync(async (req, res) => {
     process.env.JWT_ACCESS_EXPIRES_IN,
   );
 
-  const refreshToken1 = createToken(
-    jwtPayload,
-    process.env.JWT_REFRESH_SECRET,
-    process.env.JWT_REFRESH_EXPIRES_IN,
-  );
-  user.refreshToken = refreshToken1;
-  await user.save();
-  res.cookie("refreshToken", refreshToken1, getRefreshCookieOptions());
+  const stableRefreshToken = user.refreshToken;
+  res.cookie("refreshToken", stableRefreshToken, getRefreshCookieOptions());
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
     message: "Token refreshed successfully",
-    data: { accessToken: accessToken, refreshToken: refreshToken1 },
+    data: { accessToken: accessToken, refreshToken: stableRefreshToken },
   });
 });
 

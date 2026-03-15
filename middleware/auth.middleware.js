@@ -5,14 +5,39 @@ import { User } from "./../model/user.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import { createToken } from "../utils/authToken.js";
 
-const getRefreshTokenFromRequest = (req) => {
-  const refreshTokenFromBody = req.body?.refreshToken;
-  const refreshTokenFromCookie = req.cookies?.refreshToken;
-  const refreshTokenFromHeader = req.headers["x-refresh-token"];
+const normalizeToken = (tokenLike) => {
+  if (typeof tokenLike !== "string") {
+    return undefined;
+  }
 
-  return (
-    refreshTokenFromBody || refreshTokenFromCookie || refreshTokenFromHeader
-  );
+  const normalized = tokenLike.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.startsWith("Bearer ")) {
+    return normalized.split(" ")[1]?.trim();
+  }
+
+  return normalized;
+};
+
+const getRefreshTokensFromRequest = (req) => {
+  const refreshTokenFromCookie = normalizeToken(req.cookies?.refreshToken);
+  const refreshTokenFromBody = normalizeToken(req.body?.refreshToken);
+  const refreshTokenFromHeader = normalizeToken(req.headers["x-refresh-token"]);
+  const refreshTokenFromAuthorization = normalizeToken(req.headers.authorization);
+
+  return [
+    ...new Set(
+      [
+        refreshTokenFromCookie,
+        refreshTokenFromBody,
+        refreshTokenFromHeader,
+        refreshTokenFromAuthorization,
+      ].filter(Boolean),
+    ),
+  ];
 };
 
 export const protect = catchAsync(async (req, res, next) => {
@@ -26,23 +51,36 @@ export const protect = catchAsync(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
     user = await User.findById(decoded._id);
   } catch (error) {
-    const refreshToken = getRefreshTokenFromRequest(req);
-    if (!refreshToken) {
+    const refreshTokens = getRefreshTokensFromRequest(req);
+    if (!refreshTokens.length) {
       throw new AppError(httpStatus.UNAUTHORIZED, "Invalid token");
     }
 
-    let decodedRefreshToken;
-    try {
-      decodedRefreshToken = jwt.verify(
-        refreshToken,
-        process.env.JWT_REFRESH_SECRET,
-      );
-    } catch (refreshError) {
-      throw new AppError(httpStatus.UNAUTHORIZED, "Invalid token");
+    for (const refreshToken of refreshTokens) {
+      let decodedRefreshToken;
+      try {
+        decodedRefreshToken = jwt.verify(
+          refreshToken,
+          process.env.JWT_REFRESH_SECRET,
+        );
+      } catch (refreshError) {
+        continue;
+      }
+
+      const candidateUser = await User.findById(decodedRefreshToken._id);
+      if (!candidateUser || !candidateUser.isActive) {
+        continue;
+      }
+
+      if (candidateUser.refreshToken !== refreshToken) {
+        continue;
+      }
+
+      user = candidateUser;
+      break;
     }
 
-    user = await User.findById(decodedRefreshToken._id);
-    if (!user || !user.isActive || user.refreshToken !== refreshToken) {
+    if (!user) {
       throw new AppError(httpStatus.UNAUTHORIZED, "Invalid token");
     }
 
