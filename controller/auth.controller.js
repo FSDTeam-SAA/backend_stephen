@@ -24,23 +24,7 @@ const normalizeToken = (tokenLike) => {
   return normalized;
 };
 
-const getRefreshTokensFromRequest = (req) => {
-  const refreshTokenFromCookie = normalizeToken(req.cookies?.refreshToken);
-  const refreshTokenFromBody = normalizeToken(req.body?.refreshToken);
-  const refreshTokenFromHeader = normalizeToken(req.headers["x-refresh-token"]);
-  const refreshTokenFromAuthorization = normalizeToken(req.headers.authorization);
-
-  return [
-    ...new Set(
-      [
-        refreshTokenFromCookie,
-        refreshTokenFromBody,
-        refreshTokenFromHeader,
-        refreshTokenFromAuthorization,
-      ].filter(Boolean),
-    ),
-  ];
-};
+const getRefreshTokenFromBody = (req) => normalizeToken(req.body?.refreshToken);
 
 const getRefreshCookieOptions = () => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -340,36 +324,21 @@ export const changePassword = catchAsync(async (req, res) => {
 });
 
 export const refreshToken = catchAsync(async (req, res) => {
-  const refreshTokens = getRefreshTokensFromRequest(req);
+  const refreshTokenFromBody = getRefreshTokenFromBody(req);
 
-  if (!refreshTokens.length) {
-    throw new AppError(400, "Refresh token is required");
+  if (!refreshTokenFromBody) {
+    throw new AppError(400, "Refresh token is required in request body");
   }
 
-  let user = null;
-
-  for (const refreshToken of refreshTokens) {
-    let decoded;
-    try {
-      decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
-    } catch (error) {
-      continue;
-    }
-
-    const candidateUser = await User.findById(decoded._id);
-    if (!candidateUser || !candidateUser.isActive) {
-      continue;
-    }
-
-    if (candidateUser.refreshToken !== refreshToken) {
-      continue;
-    }
-
-    user = candidateUser;
-    break;
+  let decoded;
+  try {
+    decoded = verifyToken(refreshTokenFromBody, process.env.JWT_REFRESH_SECRET);
+  } catch (error) {
+    throw new AppError(401, "Invalid refresh token");
   }
 
-  if (!user) {
+  const user = await User.findById(decoded._id);
+  if (!user || !user.isActive || user.refreshToken !== refreshTokenFromBody) {
     throw new AppError(401, "Invalid refresh token");
   }
 
