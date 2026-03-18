@@ -38,10 +38,14 @@ const getRefreshCookieOptions = () => {
 };
 
 export const register = catchAsync(async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, category } = req.body;
 
   if (!name || !email || !password) {
     return next(new AppError(400, "Name, email and password are required"));
+  }
+
+  if ((role === "admin" || role === "manager") && !category) {
+    return next(new AppError(400, "Category is required for admin/manager"));
   }
 
   // Check existing user
@@ -50,9 +54,9 @@ export const register = catchAsync(async (req, res, next) => {
     return next(new AppError(409, "Email already registered"));
   }
 
-  const existingAdminCount = await User.countDocuments({ role: "admin" });
   let resolvedRole = "client";
-  if (role === "admin" && existingAdminCount === 0) {
+
+  if (role === "admin") {
     resolvedRole = "admin";
   } else if (role === "manager") {
     resolvedRole = "manager";
@@ -63,18 +67,20 @@ export const register = catchAsync(async (req, res, next) => {
     email,
     password,
     role: resolvedRole,
+    category,
     isEmailVerified: true,
   });
 
   sendResponse(res, {
     statusCode: 201,
     success: true,
-    message: "Registration successful. You can now log in.",
+    message: "Registration successful",
     data: {
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
+      category: user.category,
     },
   });
 });

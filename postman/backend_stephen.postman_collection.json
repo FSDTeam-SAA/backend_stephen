@@ -140,13 +140,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "register"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"],
               "query": []
             },
             "description": ""
@@ -177,13 +172,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
               "query": []
             },
             "description": ""
@@ -231,13 +221,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
               "query": []
             },
             "description": ""
@@ -282,13 +267,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
               "query": []
             },
             "description": ""
@@ -333,13 +313,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
               "query": []
             },
             "description": ""
@@ -384,13 +359,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/verify",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "verify"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "verify"],
               "query": []
             },
             "description": ""
@@ -421,13 +391,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/forget",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "forget"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "forget"],
               "query": []
             },
             "description": ""
@@ -458,13 +423,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/reset-password",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "reset-password"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password"],
               "query": []
             },
             "description": ""
@@ -502,13 +462,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/change-password",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "change-password"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "change-password"],
               "query": []
             },
             "description": ""
@@ -539,13 +494,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/refresh-token",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "refresh-token"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh-token"],
               "query": []
             },
             "description": ""
@@ -583,13 +533,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/logout",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "logout"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"],
               "query": []
             },
             "description": ""
@@ -618,13 +563,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/user/profile",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "profile"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "profile"],
               "query": []
             },
             "description": ""
@@ -662,13 +602,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/user/profile",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "profile"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "profile"],
               "query": []
             },
             "description": ""
@@ -706,13 +641,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/user/password",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "password"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "password"],
               "query": []
             },
             "description": ""
@@ -755,13 +685,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/managers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "managers"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "managers"],
               "query": []
             },
             "description": ""
@@ -799,13 +724,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/managers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "managers"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "managers"],
               "query": []
             },
             "description": ""
@@ -829,14 +749,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/managers/:managerId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "managers",
-                "{{managerId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "managers", "{{managerId}}"],
               "query": []
             },
             "description": ""
@@ -874,13 +788,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects"],
               "query": []
             },
             "description": ""
@@ -932,14 +841,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -963,13 +866,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects?status=active&search=Skyline",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects"],
               "query": [
                 {
                   "key": "status",
@@ -1016,15 +914,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects/:projectId/assign-manager",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects",
-                "{{projectId}}",
-                "assign-manager"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects", "{{projectId}}", "assign-manager"],
               "query": []
             },
             "description": ""
@@ -1048,14 +939,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -1079,13 +964,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/financial-overview",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "financial-overview"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "financial-overview"],
               "query": []
             },
             "description": ""
@@ -1114,12 +994,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/dashboard",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "dashboard"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard"],
               "query": []
             },
             "description": ""
@@ -1148,12 +1024,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects?status=active&search=Skyline",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects"],
               "query": [
                 {
                   "key": "status",
@@ -1186,13 +1058,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -1230,14 +1097,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "status"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "status"],
               "query": []
             },
             "description": ""
@@ -1275,14 +1136,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/progress",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "progress"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "progress"],
               "query": []
             },
             "description": ""
@@ -1320,14 +1175,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/phases",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "phases"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "phases"],
               "query": []
             },
             "description": ""
@@ -1365,14 +1214,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/phase-payment",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "phase-payment"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "phase-payment"],
               "query": []
             },
             "description": ""
@@ -1396,14 +1239,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/financial-summary",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "financial-summary"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "financial-summary"],
               "query": []
             },
             "description": ""
@@ -1446,12 +1283,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks"],
               "query": []
             },
             "description": ""
@@ -1489,12 +1322,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks?projectId={{projectId}}&status=in-progress&approvalStatus=pending",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks"],
               "query": [
                 {
                   "key": "projectId",
@@ -1531,13 +1360,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}"],
               "query": []
             },
             "description": ""
@@ -1575,13 +1399,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}"],
               "query": []
             },
             "description": ""
@@ -1619,14 +1438,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "status"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "status"],
               "query": []
             },
             "description": ""
@@ -1664,14 +1477,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId/resubmit",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "resubmit"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "resubmit"],
               "query": []
             },
             "description": ""
@@ -1709,14 +1516,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId/approve",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "approve"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "approve"],
               "query": []
             },
             "description": ""
@@ -1754,14 +1555,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId/reject",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "reject"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "reject"],
               "query": []
             },
             "description": ""
@@ -1804,12 +1599,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates"],
               "query": []
             },
             "description": ""
@@ -1877,12 +1668,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates"],
               "query": []
             },
             "description": ""
@@ -1931,13 +1718,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}"],
               "query": []
             },
             "description": ""
@@ -1961,14 +1743,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/project/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "project",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "project", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -2006,14 +1782,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/like",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "like"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "like"],
               "query": []
             },
             "description": ""
@@ -2051,14 +1821,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/share",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "share"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "share"],
               "query": []
             },
             "description": ""
@@ -2096,14 +1860,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/comments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "comments"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "comments"],
               "query": []
             },
             "description": ""
@@ -2127,14 +1885,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/comments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "comments"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "comments"],
               "query": []
             },
             "description": ""
@@ -2188,12 +1940,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/documents",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "documents"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["documents"],
               "query": []
             },
             "description": ""
@@ -2217,14 +1965,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/documents/project/:projectId?category=drawings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "documents",
-                "project",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["documents", "project", "{{projectId}}"],
               "query": [
                 {
                   "key": "category",
@@ -2258,12 +2000,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats?entityType=Project",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats"],
               "query": [
                 {
                   "key": "entityType",
@@ -2292,14 +2030,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/project/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "project",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "project", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -2337,14 +2069,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/task/:taskId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "task",
-                "{{taskId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "task", "{{taskId}}"],
               "query": []
             },
             "description": ""
@@ -2368,14 +2094,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/:chatId/messages?limit=50&page=1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "{{chatId}}",
-                "messages"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "{{chatId}}", "messages"],
               "query": [
                 {
                   "key": "limit",
@@ -2422,14 +2142,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/:chatId/messages",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "{{chatId}}",
-                "messages"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "{{chatId}}", "messages"],
               "query": []
             },
             "description": ""
@@ -2467,14 +2181,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/:chatId/read",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "{{chatId}}",
-                "read"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "{{chatId}}", "read"],
               "query": []
             },
             "description": ""
@@ -2503,12 +2211,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/notifications",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"],
               "query": []
             },
             "description": ""
@@ -2546,13 +2250,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/notifications/read-all",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications",
-                "read-all"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "read-all"],
               "query": []
             },
             "description": ""
@@ -2590,14 +2289,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/notifications/:notificationId/read",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications",
-                "{{notificationId}}",
-                "read"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"],
               "query": []
             },
             "description": ""
