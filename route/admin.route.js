@@ -4,6 +4,7 @@ import {
   createManager,
   createProject,
   deleteManager,
+  deleteProject,
   getAllProjects,
   getFinancialOverview,
   getManagers,
@@ -23,6 +24,7 @@ router.delete("/managers/:managerId", deleteManager);
 router.post("/projects", upload.array("images", 10), createProject);
 router.get("/projects", getAllProjects);
 router.patch("/projects/:projectId", upload.array("images", 10), updateProject);
+router.delete("/projects/:projectId", deleteProject);
 router.patch("/projects/:projectId/assign-manager", assignManagerToProject);
 
 router.get("/financial-overview", getFinancialOverview);

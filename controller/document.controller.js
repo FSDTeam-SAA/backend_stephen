@@ -7,7 +7,10 @@ import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { uploadOnCloudinary } from "../utils/commonMethod.js";
 import { getProjectForUser } from "../utils/projectAccess.js";
-import { createNotification } from "../utils/notification.js";
+import {
+  createNotification,
+  createNotificationsForUsers,
+} from "../utils/notification.js";
 import { getIO } from "../utils/socket.js";
 
 const DOCUMENT_CATEGORY_ALIASES = {
@@ -57,6 +60,7 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
 
   const uploaded = await uploadOnCloudinary(req.file.buffer, {
     folder: "project_documents",
+    resource_type: "auto",
   });
 
   const document = await Document.create({
@@ -76,13 +80,16 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
   });
 
   await Promise.all([
-    createNotification({
-      user: project.client,
-      project: project._id,
-      title: "New Document Uploaded",
-      message: `${title} added under ${normalizedCategory}`,
-      type: "new_document",
-    }),
+    createNotificationsForUsers(
+      project.clientUsers || [project.client],
+      (userId) => ({
+        user: userId,
+        project: project._id,
+        title: "New Document Uploaded",
+        message: `${title} added under ${normalizedCategory}`,
+        type: "new_document",
+      }),
+    ),
     createNotification({
       user: project.createdBy,
       project: project._id,

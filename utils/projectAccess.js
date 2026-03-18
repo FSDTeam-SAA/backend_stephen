@@ -12,7 +12,9 @@ export const buildProjectScope = (user) => {
   }
 
   if (user.role === "client") {
-    return { client: user._id };
+    return {
+      $or: [{ client: user._id }, { clientUsers: user._id }],
+    };
   }
 
   throw new AppError(httpStatus.FORBIDDEN, "Invalid role");
