@@ -66,8 +66,13 @@ const getManagerDashboard = async (userId) => {
 
 const getClientDashboard = async (userId) => {
   const [projects, tasksAwaitingApproval] = await Promise.all([
-    Project.find({ client: userId }).sort({ createdAt: -1 }),
-    Task.find({ client: userId, approvalStatus: "pending" })
+    Project.find({
+      $or: [{ client: userId }, { clientUsers: userId }],
+    }).sort({ createdAt: -1 }),
+    Task.find({
+      approvalStatus: "pending",
+      $or: [{ client: userId }, { clientUsers: userId }],
+    })
       .select("taskName status approvalStatus project submittedForApprovalAt")
       .populate("project", "projectName projectCode"),
   ]);

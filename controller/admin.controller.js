@@ -3,10 +3,20 @@ import AppError from "../errors/AppError.js";
 import { User } from "../model/user.model.js";
 import { Project } from "../model/project.model.js";
 import { Manager } from "../model/manager.model.js";
+import { Task } from "../model/task.model.js";
+import { ProjectUpdate } from "../model/projectUpdate.model.js";
+import { Comment } from "../model/comment.model.js";
+import { Document } from "../model/document.model.js";
+import { Chat } from "../model/chat.model.js";
+import { Message } from "../model/message.model.js";
+import { Notification } from "../model/notification.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { ensureChatRoom } from "../utils/chat.js";
-import { createNotification } from "../utils/notification.js";
+import {
+  createNotification,
+  createNotificationsForUsers,
+} from "../utils/notification.js";
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/commonMethod.js";
 
 const generateProjectCode = () =>
@@ -112,6 +122,132 @@ const parseStringArrayInput = (value) => {
   }
 
   return [];
+};
+
+const parseClientAccountsInput = (value, fallback = {}) => {
+  if (value === undefined || value === null || value === "") {
+    if (!fallback.email) {
+      return [];
+    }
+
+    return [
+      {
+        name: String(fallback.name || "").trim(),
+        email: String(fallback.email || "").trim().toLowerCase(),
+        password: String(fallback.password || "").trim(),
+      },
+    ];
+  }
+
+  let parsed = value;
+  if (!Array.isArray(parsed)) {
+    try {
+      parsed = JSON.parse(String(value));
+    } catch {
+      throw new AppError(httpStatus.BAD_REQUEST, "Invalid clientAccounts payload");
+    }
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Add at least one client account to the project",
+    );
+  }
+
+  const normalized = parsed.map((item, index) => {
+    const name = String(item?.name || "").trim();
+    const email = String(item?.email || "").trim().toLowerCase();
+    const password = String(item?.password || "").trim();
+
+    if (!name || !email) {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Client account ${index + 1} must include name and email`,
+      );
+    }
+
+    return {
+      name,
+      email,
+      password,
+    };
+  });
+
+  const uniqueEmails = new Set();
+  for (const account of normalized) {
+    if (uniqueEmails.has(account.email)) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Client account emails must be unique within a project",
+      );
+    }
+    uniqueEmails.add(account.email);
+  }
+
+  return normalized;
+};
+
+const resolveClientUsers = async (clientAccounts, category) => {
+  const clientUsers = [];
+  let createdCount = 0;
+
+  for (const account of clientAccounts) {
+    const existingUser = await User.findOne({ email: account.email });
+
+    if (!existingUser) {
+      if (!account.password) {
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          `Password is required for new client account: ${account.email}`,
+        );
+      }
+
+      const createdUser = await User.create({
+        name: account.name,
+        email: account.email,
+        password: account.password,
+        role: "client",
+        category,
+        isEmailVerified: true,
+      });
+
+      clientUsers.push(createdUser);
+      createdCount += 1;
+      continue;
+    }
+
+    if (existingUser.role !== "client") {
+      throw new AppError(
+        httpStatus.BAD_REQUEST,
+        `Email belongs to a non-client account: ${account.email}`,
+      );
+    }
+
+    let shouldSave = false;
+    if (account.name && existingUser.name !== account.name) {
+      existingUser.name = account.name;
+      shouldSave = true;
+    }
+    if (category && existingUser.category !== category) {
+      existingUser.category = category;
+      shouldSave = true;
+    }
+    if (account.password) {
+      existingUser.password = account.password;
+      shouldSave = true;
+    }
+    if (shouldSave) {
+      await existingUser.save();
+    }
+
+    clientUsers.push(existingUser);
+  }
+
+  return {
+    clientUsers,
+    createdCount,
+  };
 };
 
 export const createManager = catchAsync(async (req, res) => {
@@ -239,7 +375,10 @@ export const createProject = catchAsync(async (req, res) => {
     clientName,
     clientEmail,
     clientPassword,
+    clientAccounts: rawClientAccounts,
   } = req.body;
+  const hasClientAccountsPayload =
+    rawClientAccounts !== undefined && String(rawClientAccounts).trim() !== "";
 
   const missingFields = [
     !String(projectName || "").trim() ? "projectName" : null,
@@ -248,8 +387,12 @@ export const createProject = catchAsync(async (req, res) => {
     !String(endDate || "").trim() ? "endDate" : null,
     !String(address || "").trim() ? "address" : null,
     !String(siteManagerId || "").trim() ? "siteManagerId" : null,
-    !String(clientName || "").trim() ? "clientName" : null,
-    !String(clientEmail || "").trim() ? "clientEmail" : null,
+    !hasClientAccountsPayload && !String(clientName || "").trim()
+      ? "clientName"
+      : null,
+    !hasClientAccountsPayload && !String(clientEmail || "").trim()
+      ? "clientEmail"
+      : null,
   ].filter(Boolean);
 
   if (missingFields.length > 0) {
@@ -281,37 +424,21 @@ export const createProject = catchAsync(async (req, res) => {
     }),
   );
 
-  let clientUser = await User.findOne({ email: clientEmail.toLowerCase() });
-  let isNewClient = false;
-
-  if (!clientUser) {
-    if (!clientPassword) {
-      throw new AppError(
-        httpStatus.BAD_REQUEST,
-        "Client password is required when creating a new client account",
-      );
-    }
-
-    clientUser = await User.create({
-      name: clientName,
-      email: clientEmail,
-      password: clientPassword,
-      role: "client",
-      category,
-      isEmailVerified: true,
-    });
-    isNewClient = true;
-  } else if (clientUser.role !== "client") {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      "Provided client email belongs to a non-client account",
-    );
-  }
+  const clientAccounts = parseClientAccountsInput(rawClientAccounts, {
+    name: clientName,
+    email: clientEmail,
+    password: clientPassword,
+  });
+  const { clientUsers, createdCount } = await resolveClientUsers(
+    clientAccounts,
+    category,
+  );
+  const primaryClient = clientUsers[0];
 
   const project = await Project.create({
     projectCode: generateProjectCode(),
-    clientName,
-    clientEmail: clientEmail.toLowerCase(),
+    clientName: primaryClient.name,
+    clientEmail: primaryClient.email,
     projectName,
     category,
     phases: normalizedPhases,
@@ -321,7 +448,8 @@ export const createProject = catchAsync(async (req, res) => {
     address,
     images: uploadedProjectImages,
     siteManager: manager._id,
-    client: clientUser._id,
+    client: primaryClient._id,
+    clientUsers: clientUsers.map((user) => user._id),
     createdBy: req.user._id,
   });
 
@@ -329,15 +457,17 @@ export const createProject = catchAsync(async (req, res) => {
     User.findByIdAndUpdate(manager._id, {
       $addToSet: { assignedProjects: project._id },
     }),
-    User.findByIdAndUpdate(clientUser._id, {
-      $addToSet: { assignedProjects: project._id },
-    }),
+    ...clientUsers.map((user) =>
+      User.findByIdAndUpdate(user._id, {
+        $addToSet: { assignedProjects: project._id },
+      }),
+    ),
   ]);
 
   await ensureChatRoom({
     entityId: project._id,
     entityType: "Project",
-    participants: [req.user._id, manager._id, clientUser._id],
+    participants: [req.user._id, manager._id, ...clientUsers.map((user) => user._id)],
     createdBy: req.user._id,
     title: `${project.projectName} Group Chat`,
   });
@@ -350,13 +480,13 @@ export const createProject = catchAsync(async (req, res) => {
       message: `You have been assigned to project: ${project.projectName}`,
       type: "task_assigned",
     }),
-    createNotification({
-      user: clientUser._id,
+    createNotificationsForUsers(clientUsers.map((user) => user._id), (userId) => ({
+      user: userId,
       project: project._id,
       title: "Project Created",
       message: `Your project "${project.projectName}" is now active`,
       type: "task_assigned",
-    }),
+    })),
   ]);
 
   sendResponse(res, {
@@ -366,10 +496,15 @@ export const createProject = catchAsync(async (req, res) => {
     data: {
       project,
       clientAccount: {
-        isNewClient,
-        email: clientUser.email,
-        name: clientUser.name,
-        category: clientUser.category,
+        isNewClient: createdCount > 0,
+        count: clientUsers.length,
+        emails: clientUsers.map((user) => user.email),
+        clients: clientUsers.map((user) => ({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          category: user.category,
+        })),
       },
     },
   });
@@ -386,10 +521,15 @@ export const updateProject = catchAsync(async (req, res) => {
     endDate,
     address,
     siteManagerId,
+    clientAccounts: rawClientAccounts,
   } = req.body;
+  const hasClientAccountsPayload =
+    rawClientAccounts !== undefined && String(rawClientAccounts).trim() !== "";
 
   const missingFields = [
-    !String(clientName || "").trim() ? "clientName" : null,
+    !hasClientAccountsPayload && !String(clientName || "").trim()
+      ? "clientName"
+      : null,
     !String(projectName || "").trim() ? "projectName" : null,
     !String(category || "").trim() ? "category" : null,
     !String(startDate || "").trim() ? "startDate" : null,
@@ -418,8 +558,21 @@ export const updateProject = catchAsync(async (req, res) => {
   const phases = parsePhasesInput(rawPhases);
   const normalizedPhases = normalizeProjectPhases(phases, project.phases);
   const previousManagerId = project.siteManager?.toString();
+  const previousClientIds = (project.clientUsers || [project.client])
+    .filter(Boolean)
+    .map((id) => id.toString());
+  const clientAccounts = parseClientAccountsInput(rawClientAccounts, {
+    name: clientName,
+    email: project.clientEmail,
+  });
+  const { clientUsers } = await resolveClientUsers(clientAccounts, category);
+  const nextClientIds = clientUsers.map((user) => user._id.toString());
+  const removedClientIds = previousClientIds.filter(
+    (clientId) => !nextClientIds.includes(clientId),
+  );
 
-  project.clientName = String(clientName).trim();
+  project.clientName = clientUsers[0].name;
+  project.clientEmail = clientUsers[0].email;
   project.projectName = String(projectName).trim();
   project.category = String(category).trim();
   project.phases = normalizedPhases;
@@ -428,6 +581,8 @@ export const updateProject = catchAsync(async (req, res) => {
   project.endDate = endDate;
   project.address = String(address).trim();
   project.siteManager = manager._id;
+  project.client = clientUsers[0]._id;
+  project.clientUsers = clientUsers.map((user) => user._id);
 
   const removedImagePublicIds = parseStringArrayInput(
     req.body.removedImagePublicIds,
@@ -470,12 +625,12 @@ export const updateProject = catchAsync(async (req, res) => {
     User.findByIdAndUpdate(manager._id, {
       $addToSet: { assignedProjects: project._id },
     }),
-    project.client
-      ? User.findByIdAndUpdate(project.client, {
-          $set: { name: project.clientName },
-          $addToSet: { assignedProjects: project._id },
-        })
-      : Promise.resolve(),
+    ...clientUsers.map((user) =>
+      User.findByIdAndUpdate(user._id, {
+        $set: { name: user.name, category },
+        $addToSet: { assignedProjects: project._id },
+      }),
+    ),
   ]);
 
   if (previousManagerId && previousManagerId !== manager._id.toString()) {
@@ -484,12 +639,24 @@ export const updateProject = catchAsync(async (req, res) => {
     });
   }
 
+  if (removedClientIds.length > 0) {
+    await Promise.all(
+      removedClientIds.map((clientId) =>
+        User.findByIdAndUpdate(clientId, {
+          $pull: { assignedProjects: project._id },
+        }),
+      ),
+    );
+  }
+
   const groupChat = await ensureChatRoom({
     entityId: project._id,
     entityType: "Project",
-    participants: [project.createdBy, manager._id, project.client].filter(
-      Boolean,
-    ),
+    participants: [
+      project.createdBy,
+      manager._id,
+      ...clientUsers.map((user) => user._id),
+    ].filter(Boolean),
     createdBy: project.createdBy,
     title: `${project.projectName} Group Chat`,
   });
@@ -499,7 +666,7 @@ export const updateProject = catchAsync(async (req, res) => {
       ...(groupChat.participants || []).map((id) => id.toString()),
       manager._id.toString(),
       project.createdBy.toString(),
-      project.client?.toString(),
+      ...clientUsers.map((user) => user._id.toString()),
     ].filter(Boolean)),
   ];
   await groupChat.save();
@@ -516,7 +683,8 @@ export const updateProject = catchAsync(async (req, res) => {
 
   const updatedProject = await Project.findById(project._id)
     .populate("siteManager", "name email")
-    .populate("client", "name email");
+    .populate("client", "name email")
+    .populate("clientUsers", "name email");
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -556,7 +724,11 @@ export const assignManagerToProject = catchAsync(async (req, res) => {
   const groupChat = await ensureChatRoom({
     entityId: project._id,
     entityType: "Project",
-    participants: [project.createdBy, manager._id, project.client],
+    participants: [
+      project.createdBy,
+      manager._id,
+      ...((project.clientUsers || [project.client]).filter(Boolean)),
+    ],
     createdBy: project.createdBy,
     title: `${project.projectName} Group Chat`,
   });
@@ -565,8 +737,10 @@ export const assignManagerToProject = catchAsync(async (req, res) => {
     ...new Set([
       ...(groupChat.participants || []).map((id) => id.toString()),
       manager._id.toString(),
-      project.client.toString(),
       project.createdBy.toString(),
+      ...((project.clientUsers || [project.client])
+        .filter(Boolean)
+        .map((id) => id.toString())),
     ]),
   ];
   await groupChat.save();
@@ -606,6 +780,7 @@ export const getAllProjects = catchAsync(async (req, res) => {
   const projects = await Project.find(query)
     .populate("siteManager", "name email")
     .populate("client", "name email")
+    .populate("clientUsers", "name email")
     .sort({ createdAt: -1 });
 
   sendResponse(res, {
@@ -637,5 +812,78 @@ export const getFinancialOverview = catchAsync(async (req, res) => {
       totals,
       projects,
     },
+  });
+});
+
+export const deleteProject = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found");
+  }
+
+  const clientIds = (project.clientUsers || [project.client])
+    .filter(Boolean)
+    .map((id) => id.toString());
+
+  const [documents, updates, chats] = await Promise.all([
+    Document.find({ project: project._id }),
+    ProjectUpdate.find({ project: project._id }),
+    Chat.find({ entityType: "Project", entityId: project._id }),
+  ]);
+
+  const updateIds = updates.map((update) => update._id);
+  const taskIds = await Task.find({ project: project._id }).distinct("_id");
+  const taskChats = await Chat.find({ entityType: "Task", entityId: { $in: taskIds } });
+  const allChats = [...chats, ...taskChats];
+  const allChatIds = allChats.map((chat) => chat._id);
+
+  const assetDeletePromises = [
+    ...(project.images || []).map((image) => deleteFromCloudinary(image.public_id)),
+    ...documents.map((doc) =>
+      deleteFromCloudinary(doc.document?.public_id, { resource_type: "raw" }),
+    ),
+    ...updates.flatMap((update) => [
+      ...(update.images || []).map((image) => deleteFromCloudinary(image.public_id)),
+      ...(update.videos || []).map((video) =>
+        deleteFromCloudinary(video.public_id, { resource_type: "video" }),
+      ),
+    ]),
+  ];
+
+  await Promise.all(assetDeletePromises);
+
+  await Promise.all([
+    Comment.deleteMany({ update: { $in: updateIds } }),
+    Message.deleteMany({ chatRoom: { $in: allChatIds } }),
+    Notification.deleteMany({
+      $or: [
+        { project: project._id },
+        { task: { $in: taskIds } },
+        { update: { $in: updateIds } },
+        { chat: { $in: allChatIds } },
+      ],
+    }),
+    Document.deleteMany({ project: project._id }),
+    ProjectUpdate.deleteMany({ project: project._id }),
+    Task.deleteMany({ project: project._id }),
+    Chat.deleteMany({ _id: { $in: allChatIds } }),
+    Project.deleteOne({ _id: project._id }),
+    User.findByIdAndUpdate(project.siteManager, {
+      $pull: { assignedProjects: project._id },
+    }),
+    ...clientIds.map((clientId) =>
+      User.findByIdAndUpdate(clientId, {
+        $pull: { assignedProjects: project._id },
+      }),
+    ),
+  ]);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Project deleted successfully",
+    data: null,
   });
 });

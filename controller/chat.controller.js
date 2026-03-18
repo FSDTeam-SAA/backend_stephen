@@ -46,7 +46,9 @@ export const getOrCreateTaskChat = catchAsync(async (req, res) => {
 
   const isAllowed =
     task.manager.toString() === req.user._id.toString() ||
-    task.client.toString() === req.user._id.toString();
+    (task.clientUsers || [task.client]).some(
+      (clientId) => clientId.toString() === req.user._id.toString(),
+    );
 
   if (!isAllowed) {
     throw new AppError(httpStatus.FORBIDDEN, "You cannot access this task chat");
@@ -55,10 +57,21 @@ export const getOrCreateTaskChat = catchAsync(async (req, res) => {
   const chat = await ensureChatRoom({
     entityId: task._id,
     entityType: "Task",
-    participants: [task.manager, task.client, req.user._id],
+    participants: [task.manager, ...(task.clientUsers || [task.client]), req.user._id],
     createdBy: task.manager,
     title: `${task.taskName} Discussion`,
   });
+
+  chat.participants = [
+    ...new Set(
+      [
+        ...(chat.participants || []).map((id) => id.toString()),
+        task.manager?.toString(),
+        ...((task.clientUsers || [task.client]).filter(Boolean).map((id) => id.toString())),
+      ].filter(Boolean),
+    ),
+  ];
+  await chat.save();
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -78,12 +91,24 @@ export const getOrCreateProjectChat = catchAsync(async (req, res) => {
     participants: [
       project.createdBy,
       project.siteManager,
-      project.client,
+      ...((project.clientUsers || [project.client]).filter(Boolean)),
       req.user._id,
     ],
     createdBy: project.createdBy,
     title: `${project.projectName} Group Chat`,
   });
+
+  chat.participants = [
+    ...new Set(
+      [
+        ...(chat.participants || []).map((id) => id.toString()),
+        project.createdBy?.toString(),
+        project.siteManager?.toString(),
+        ...((project.clientUsers || [project.client]).filter(Boolean).map((id) => id.toString())),
+      ].filter(Boolean),
+    ),
+  ];
+  await chat.save();
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
