@@ -88,6 +88,7 @@ export const protect = catchAsync(async (req, res, next) => {
       _id: user._id,
       email: user.email,
       role: user.role,
+      category: user.category,
     };
 
     const newAccessToken = createToken(

@@ -18,6 +18,7 @@ import {
   createNotificationsForUsers,
 } from "../utils/notification.js";
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/commonMethod.js";
+import { resolveScopedCategory } from "../utils/category.js";
 
 const generateProjectCode = () =>
   `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
@@ -257,17 +258,13 @@ export const createManager = catchAsync(async (req, res) => {
     .toLowerCase();
   const password = String(req.body.password || "");
   const phone = String(req.body.phone || "").trim();
-  const category = String(req.body.category || "normal").trim() || "normal";
+  const dashboardCategory = resolveScopedCategory(req.user, req.body.category);
 
   if (!name || !email || !password) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       "Name, email and password are required",
     );
-  }
-
-  if (!["construction", "interior", "normal"].includes(category)) {
-    throw new AppError(httpStatus.BAD_REQUEST, "Invalid manager category");
   }
 
   const existingUser = await User.findOne({ email });
@@ -293,7 +290,7 @@ export const createManager = catchAsync(async (req, res) => {
     avatar,
     phone: phone || "",
     role: "manager",
-    category,
+    category: dashboardCategory,
     isEmailVerified: true,
   });
 
@@ -320,8 +317,14 @@ export const createManager = catchAsync(async (req, res) => {
 });
 
 export const getManagers = catchAsync(async (req, res) => {
-  const managers = await User.find({ role: "manager", isActive: true })
-    .select("name email phone avatar assignedProjects createdAt")
+  const dashboardCategory = resolveScopedCategory(req.user, req.query.category);
+
+  const managers = await User.find({
+    role: "manager",
+    category: dashboardCategory,
+    isActive: true,
+  })
+    .select("name email phone avatar assignedProjects createdAt category")
     .sort({ createdAt: -1 });
 
   sendResponse(res, {
@@ -334,10 +337,12 @@ export const getManagers = catchAsync(async (req, res) => {
 
 export const deleteManager = catchAsync(async (req, res) => {
   const { managerId } = req.params;
+  const dashboardCategory = resolveScopedCategory(req.user, req.query.category);
 
   const manager = await User.findOne({
     _id: managerId,
     role: "manager",
+    category: dashboardCategory,
     isActive: true,
   });
 
@@ -401,8 +406,14 @@ export const createProject = catchAsync(async (req, res) => {
       `Missing required project fields: ${missingFields.join(", ")}`,
     );
   }
+  const dashboardCategory = resolveScopedCategory(req.user, category);
 
-  const manager = await User.findOne({ _id: siteManagerId, role: "manager" });
+  const manager = await User.findOne({
+    _id: siteManagerId,
+    role: "manager",
+    category: dashboardCategory,
+    isActive: true,
+  });
   if (!manager) {
     throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
   }
@@ -431,7 +442,7 @@ export const createProject = catchAsync(async (req, res) => {
   });
   const { clientUsers, createdCount } = await resolveClientUsers(
     clientAccounts,
-    category,
+    dashboardCategory,
   );
   const primaryClient = clientUsers[0];
 
@@ -440,7 +451,7 @@ export const createProject = catchAsync(async (req, res) => {
     clientName: primaryClient.name,
     clientEmail: primaryClient.email,
     projectName,
-    category,
+    category: dashboardCategory,
     phases: normalizedPhases,
     projectBudget: numericProjectBudget,
     startDate,
@@ -544,13 +555,19 @@ export const updateProject = catchAsync(async (req, res) => {
       `Missing required project fields: ${missingFields.join(", ")}`,
     );
   }
+  const dashboardCategory = resolveScopedCategory(req.user, category);
 
-  const project = await Project.findById(projectId);
+  const project = await Project.findOne({ _id: projectId, category: dashboardCategory });
   if (!project) {
     throw new AppError(httpStatus.NOT_FOUND, "Project not found");
   }
 
-  const manager = await User.findOne({ _id: siteManagerId, role: "manager" });
+  const manager = await User.findOne({
+    _id: siteManagerId,
+    role: "manager",
+    category: dashboardCategory,
+    isActive: true,
+  });
   if (!manager) {
     throw new AppError(httpStatus.NOT_FOUND, "Assigned manager not found");
   }
@@ -565,7 +582,7 @@ export const updateProject = catchAsync(async (req, res) => {
     name: clientName,
     email: project.clientEmail,
   });
-  const { clientUsers } = await resolveClientUsers(clientAccounts, category);
+  const { clientUsers } = await resolveClientUsers(clientAccounts, dashboardCategory);
   const nextClientIds = clientUsers.map((user) => user._id.toString());
   const removedClientIds = previousClientIds.filter(
     (clientId) => !nextClientIds.includes(clientId),
@@ -574,7 +591,7 @@ export const updateProject = catchAsync(async (req, res) => {
   project.clientName = clientUsers[0].name;
   project.clientEmail = clientUsers[0].email;
   project.projectName = String(projectName).trim();
-  project.category = String(category).trim();
+  project.category = dashboardCategory;
   project.phases = normalizedPhases;
   project.projectBudget = calculateProjectBudget(normalizedPhases);
   project.startDate = startDate;
@@ -627,7 +644,7 @@ export const updateProject = catchAsync(async (req, res) => {
     }),
     ...clientUsers.map((user) =>
       User.findByIdAndUpdate(user._id, {
-        $set: { name: user.name, category },
+        $set: { name: user.name, category: dashboardCategory },
         $addToSet: { assignedProjects: project._id },
       }),
     ),
@@ -697,13 +714,19 @@ export const updateProject = catchAsync(async (req, res) => {
 export const assignManagerToProject = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   const { siteManagerId } = req.body;
+  const dashboardCategory = resolveScopedCategory(req.user, req.body.category);
 
-  const project = await Project.findById(projectId);
+  const project = await Project.findOne({ _id: projectId, category: dashboardCategory });
   if (!project) {
     throw new AppError(httpStatus.NOT_FOUND, "Project not found");
   }
 
-  const manager = await User.findOne({ _id: siteManagerId, role: "manager" });
+  const manager = await User.findOne({
+    _id: siteManagerId,
+    role: "manager",
+    category: dashboardCategory,
+    isActive: true,
+  });
   if (!manager) {
     throw new AppError(httpStatus.NOT_FOUND, "Manager not found");
   }
@@ -763,7 +786,8 @@ export const assignManagerToProject = catchAsync(async (req, res) => {
 
 export const getAllProjects = catchAsync(async (req, res) => {
   const { status, search, manager } = req.query;
-  const query = {};
+  const dashboardCategory = resolveScopedCategory(req.user, req.query.category);
+  const query = { category: dashboardCategory };
 
   if (status) {
     query.projectStatus = status;
@@ -792,7 +816,8 @@ export const getAllProjects = catchAsync(async (req, res) => {
 });
 
 export const getFinancialOverview = catchAsync(async (req, res) => {
-  const projects = await Project.find({}).populate("client")
+  const dashboardCategory = resolveScopedCategory(req.user, req.query.category);
+  const projects = await Project.find({ category: dashboardCategory }).populate("client")
 
   const totals = projects.reduce(
     (acc, project) => {
@@ -817,8 +842,9 @@ export const getFinancialOverview = catchAsync(async (req, res) => {
 
 export const deleteProject = catchAsync(async (req, res) => {
   const { projectId } = req.params;
+  const dashboardCategory = resolveScopedCategory(req.user, req.query.category);
 
-  const project = await Project.findById(projectId);
+  const project = await Project.findOne({ _id: projectId, category: dashboardCategory });
   if (!project) {
     throw new AppError(httpStatus.NOT_FOUND, "Project not found");
   }

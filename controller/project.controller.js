@@ -10,8 +10,8 @@ import {
 } from "../utils/notification.js";
 
 export const getProjects = catchAsync(async (req, res) => {
-  const { status, search } = req.query;
-  const scope = buildProjectScope(req.user);
+  const { status, search, category } = req.query;
+  const scope = buildProjectScope(req.user, category);
   const query = { ...scope };
 
   if (status) {
@@ -38,7 +38,7 @@ export const getProjects = catchAsync(async (req, res) => {
 
 export const getProjectDetails = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const scope = buildProjectScope(req.user);
+  const scope = buildProjectScope(req.user, req.query.category);
   const project = await Project.findOne({ _id: projectId, ...scope })
     .populate("siteManager", "name email avatar")
     .populate("client", "name email avatar")
@@ -239,7 +239,7 @@ export const addProjectPhase = catchAsync(async (req, res) => {
 
 export const getProjectFinancialSummary = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const project = await getProjectForUser(projectId, req.user);
+  const project = await getProjectForUser(projectId, req.user, req.query.category);
 
   const totalBudget = Number(project.projectBudget || 0);
   const totalPaid = Number(project.totalPaid || 0);

@@ -1,6 +1,5 @@
 import httpStatus from "http-status";
 import AppError from "../errors/AppError.js";
-import { Project } from "../model/project.model.js";
 import { ProjectUpdate } from "../model/projectUpdate.model.js";
 import { Comment } from "../model/comment.model.js";
 import catchAsync from "../utils/catchAsync.js";
@@ -64,10 +63,7 @@ export const createProjectUpdate = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Project and description are required");
   }
 
-  const project =
-    req.user.role === "admin"
-      ? await Project.findById(projectId)
-      : await Project.findOne({ _id: projectId, siteManager: req.user._id });
+  const project = await getProjectForUser(projectId, req.user);
   if (!project) {
     throw new AppError(httpStatus.NOT_FOUND, "Project not found or not assigned");
   }
@@ -138,10 +134,7 @@ export const updateProjectUpdate = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.NOT_FOUND, "Update not found");
   }
 
-  const project =
-    req.user.role === "admin"
-      ? await Project.findById(update.project)
-      : await Project.findOne({ _id: update.project, siteManager: req.user._id });
+  const project = await getProjectForUser(update.project, req.user);
   if (!project) {
     throw new AppError(httpStatus.NOT_FOUND, "Project not found or not assigned");
   }
@@ -173,7 +166,7 @@ export const updateProjectUpdate = catchAsync(async (req, res) => {
 
 export const getProjectUpdates = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  await getProjectForUser(projectId, req.user);
+  await getProjectForUser(projectId, req.user, req.query.category);
 
   const updates = await ProjectUpdate.find({ project: projectId })
     .populate("uploadedBy", "name avatar role")
@@ -312,7 +305,7 @@ export const getUpdateComments = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.NOT_FOUND, "Update not found");
   }
 
-  await getProjectForUser(update.project, req.user);
+  await getProjectForUser(update.project, req.user, req.query.category);
 
   const comments = await Comment.find({ update: updateId })
     .populate("user", "name avatar role")
