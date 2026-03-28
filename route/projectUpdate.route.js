@@ -2,6 +2,7 @@ import express from "express";
 import {
   addUpdateComment,
   createProjectUpdate,
+  deleteProjectUpdate,
   getProjectUpdates,
   getUpdateComments,
   shareProjectUpdate,
@@ -22,6 +23,7 @@ router.use(protect);
 
 router.post("/", updateMediaUpload, createProjectUpdate);
 router.patch("/:updateId", updateMediaUpload, updateProjectUpdate);
+router.delete("/:updateId", deleteProjectUpdate);
 router.get("/project/:projectId", getProjectUpdates);
 router.patch("/:updateId/like", toggleUpdateLike);
 router.post("/:updateId/share", shareProjectUpdate);

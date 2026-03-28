@@ -164,6 +164,34 @@ export const updateProjectUpdate = catchAsync(async (req, res) => {
   });
 });
 
+export const deleteProjectUpdate = catchAsync(async (req, res) => {
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin or manager can delete updates");
+  }
+
+  const { updateId } = req.params;
+  const update = await ProjectUpdate.findById(updateId);
+  if (!update) {
+    throw new AppError(httpStatus.NOT_FOUND, "Update not found");
+  }
+
+  const comments = await Comment.find({ update: update._id });
+  await Promise.all(comments.map((comment) => comment.deleteOne()));
+
+  const project = await getProjectForUser(update.project, req.user);
+  if (!project) {
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found or not assigned");
+  }
+
+  await update.deleteOne();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Project update deleted successfully",
+  });
+});
+
 export const getProjectUpdates = catchAsync(async (req, res) => {
   const { projectId } = req.params;
   await getProjectForUser(projectId, req.user, req.query.category);

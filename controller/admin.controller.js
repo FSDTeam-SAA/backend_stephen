@@ -140,14 +140,41 @@ const parseClientAccountsInput = (value, fallback = {}) => {
     ];
   }
 
-  let parsed = value;
-  if (!Array.isArray(parsed)) {
+  const toAccountsArray = (input) => {
+    if (Array.isArray(input)) {
+      return input;
+    }
+
+    if (input && typeof input === "object") {
+      const hasDirectAccountShape =
+        "name" in input ||
+        "email" in input ||
+        "password" in input ||
+        "clientName" in input ||
+        "clientEmail" in input ||
+        "clientPassword" in input;
+
+      if (hasDirectAccountShape) {
+        return [input];
+      }
+
+      return Object.values(input);
+    }
+
+    const raw = String(input || "").trim();
+    if (!raw) {
+      return [];
+    }
+
     try {
-      parsed = JSON.parse(String(value));
+      const parsed = JSON.parse(raw);
+      return toAccountsArray(parsed);
     } catch {
       throw new AppError(httpStatus.BAD_REQUEST, "Invalid clientAccounts payload");
     }
-  }
+  };
+
+  const parsed = toAccountsArray(value);
 
   if (!Array.isArray(parsed) || parsed.length === 0) {
     throw new AppError(
@@ -157,9 +184,31 @@ const parseClientAccountsInput = (value, fallback = {}) => {
   }
 
   const normalized = parsed.map((item, index) => {
-    const name = String(item?.name || "").trim();
-    const email = String(item?.email || "").trim().toLowerCase();
-    const password = String(item?.password || "").trim();
+    let account = item;
+    if (typeof account === "string") {
+      const rawAccount = account.trim();
+      if (!rawAccount) {
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          `Client account ${index + 1} is empty`,
+        );
+      }
+
+      try {
+        account = JSON.parse(rawAccount);
+      } catch {
+        throw new AppError(
+          httpStatus.BAD_REQUEST,
+          `Client account ${index + 1} is invalid`,
+        );
+      }
+    }
+
+    const name = String(account?.name || account?.clientName || "").trim();
+    const email = String(account?.email || account?.clientEmail || "")
+      .trim()
+      .toLowerCase();
+    const password = String(account?.password || account?.clientPassword || "").trim();
 
     if (!name || !email) {
       throw new AppError(
@@ -380,10 +429,13 @@ export const createProject = catchAsync(async (req, res) => {
     clientName,
     clientEmail,
     clientPassword,
-    clientAccounts: rawClientAccounts,
   } = req.body;
+  const rawClientAccounts =
+    req.body.clientAccounts ?? req.body.clients ?? req.body.clientUsers;
   const hasClientAccountsPayload =
-    rawClientAccounts !== undefined && String(rawClientAccounts).trim() !== "";
+    rawClientAccounts !== undefined &&
+    rawClientAccounts !== null &&
+    String(rawClientAccounts).trim() !== "";
 
   const missingFields = [
     !String(projectName || "").trim() ? "projectName" : null,
@@ -532,10 +584,13 @@ export const updateProject = catchAsync(async (req, res) => {
     endDate,
     address,
     siteManagerId,
-    clientAccounts: rawClientAccounts,
   } = req.body;
+  const rawClientAccounts =
+    req.body.clientAccounts ?? req.body.clients ?? req.body.clientUsers;
   const hasClientAccountsPayload =
-    rawClientAccounts !== undefined && String(rawClientAccounts).trim() !== "";
+    rawClientAccounts !== undefined &&
+    rawClientAccounts !== null &&
+    String(rawClientAccounts).trim() !== "";
 
   const missingFields = [
     !hasClientAccountsPayload && !String(clientName || "").trim()
