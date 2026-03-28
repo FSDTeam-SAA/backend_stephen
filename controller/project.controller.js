@@ -4,11 +4,14 @@ import { Project } from "../model/project.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { buildProjectScope, getProjectForUser } from "../utils/projectAccess.js";
-import { createNotification } from "../utils/notification.js";
+import {
+  createNotification,
+  createNotificationsForUsers,
+} from "../utils/notification.js";
 
 export const getProjects = catchAsync(async (req, res) => {
-  const { status, search } = req.query;
-  const scope = buildProjectScope(req.user);
+  const { status, search, category } = req.query;
+  const scope = buildProjectScope(req.user, category);
   const query = { ...scope };
 
   if (status) {
@@ -22,6 +25,7 @@ export const getProjects = catchAsync(async (req, res) => {
   const projects = await Project.find(query)
     .populate("siteManager", "name email avatar")
     .populate("client", "name email avatar")
+    .populate("clientUsers", "name email avatar")
     .sort({ createdAt: -1 });
 
   sendResponse(res, {
@@ -34,10 +38,11 @@ export const getProjects = catchAsync(async (req, res) => {
 
 export const getProjectDetails = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const scope = buildProjectScope(req.user);
+  const scope = buildProjectScope(req.user, req.query.category);
   const project = await Project.findOne({ _id: projectId, ...scope })
     .populate("siteManager", "name email avatar")
     .populate("client", "name email avatar")
+    .populate("clientUsers", "name email avatar")
     .populate("createdBy", "name email");
 
   if (!project) {
@@ -81,13 +86,16 @@ export const addProjectProgressUpdate = catchAsync(async (req, res) => {
   await project.save();
 
   if (req.user.role === "manager") {
-    await createNotification({
-      user: project.client,
-      project: project._id,
-      title: "Project Progress Updated",
-      message: `${project.projectName} progress updated: ${progressName}`,
-      type: "site_update",
-    });
+    await createNotificationsForUsers(
+      project.clientUsers || [project.client],
+      (userId) => ({
+        user: userId,
+        project: project._id,
+        title: "Project Progress Updated",
+        message: `${project.projectName} progress updated: ${progressName}`,
+        type: "site_update",
+      }),
+    );
   }
 
   sendResponse(res, {
@@ -150,13 +158,16 @@ export const updatePhasePaymentStatus = catchAsync(async (req, res) => {
 
   await project.save();
 
-  await createNotification({
-    user: project.client,
-    project: project._id,
-    title: "Payment Phase Updated",
-    message: `${phase.phaseName} payment marked as ${phase.paymentStatus}`,
-    type: "payment_reminder",
-  });
+  await createNotificationsForUsers(
+    project.clientUsers || [project.client],
+    (userId) => ({
+      user: userId,
+      project: project._id,
+      title: "Payment Phase Updated",
+      message: `${phase.phaseName} payment marked as ${phase.paymentStatus}`,
+      type: "payment_reminder",
+    }),
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -207,13 +218,16 @@ export const addProjectPhase = catchAsync(async (req, res) => {
 
   await project.save();
 
-  await createNotification({
-    user: project.client,
-    project: project._id,
-    title: "New Project Phase Added",
-    message: `${normalizedPhaseName} phase was added to ${project.projectName}`,
-    type: "payment_reminder",
-  });
+  await createNotificationsForUsers(
+    project.clientUsers || [project.client],
+    (userId) => ({
+      user: userId,
+      project: project._id,
+      title: "New Project Phase Added",
+      message: `${normalizedPhaseName} phase was added to ${project.projectName}`,
+      type: "payment_reminder",
+    }),
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -225,7 +239,7 @@ export const addProjectPhase = catchAsync(async (req, res) => {
 
 export const getProjectFinancialSummary = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  const project = await getProjectForUser(projectId, req.user);
+  const project = await getProjectForUser(projectId, req.user, req.query.category);
 
   const totalBudget = Number(project.projectBudget || 0);
   const totalPaid = Number(project.totalPaid || 0);

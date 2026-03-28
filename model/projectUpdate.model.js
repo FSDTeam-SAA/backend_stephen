@@ -8,6 +8,15 @@ const updateImageSchema = new Schema(
   { _id: false },
 );
 
+const updateVideoSchema = new Schema(
+  {
+    public_id: { type: String, default: "" },
+    url: { type: String, required: true },
+    thumbnailUrl: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
 const projectUpdateSchema = new Schema(
   {
     project: {
@@ -31,6 +40,7 @@ const projectUpdateSchema = new Schema(
     },
 
     images: [updateImageSchema],
+    videos: [updateVideoSchema],
 
     likes: [
       {

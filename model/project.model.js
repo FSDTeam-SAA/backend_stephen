@@ -116,6 +116,13 @@ const projectSchema = new Schema(
       required: true,
       index: true,
     },
+    clientUsers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        index: true,
+      },
+    ],
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -142,12 +149,56 @@ const projectSchema = new Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   },
 );
 
 projectSchema.index({ siteManager: 1, projectStatus: 1, createdAt: -1 });
 projectSchema.index({ client: 1, createdAt: -1 });
+projectSchema.index({ clientUsers: 1, createdAt: -1 });
 projectSchema.index({ projectName: "text", address: "text", clientName: "text" });
+
+projectSchema.virtual("totalDays").get(function () {
+  if (!this.startDate || !this.endDate) {
+    return 0;
+  }
+
+  const diffMs = new Date(this.endDate).getTime() - new Date(this.startDate).getTime();
+  if (Number.isNaN(diffMs) || diffMs < 0) {
+    return 0;
+  }
+
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+});
+
+projectSchema.virtual("elapsedDays").get(function () {
+  const totalDays = this.totalDays || 0;
+  if (!totalDays || !this.startDate) {
+    return 0;
+  }
+
+  const today = new Date();
+  const startDate = new Date(this.startDate);
+
+  if (today < startDate) {
+    return 0;
+  }
+
+  const elapsedMs = today.getTime() - startDate.getTime();
+  const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24)) + 1;
+  return Math.min(elapsedDays, totalDays);
+});
+
+projectSchema.virtual("remainingDays").get(function () {
+  const totalDays = this.totalDays || 0;
+  const elapsedDays = this.elapsedDays || 0;
+  return Math.max(totalDays - elapsedDays, 0);
+});
+
+projectSchema.virtual("dayProgress").get(function () {
+  return `${this.elapsedDays || 0}/${this.totalDays || 0}`;
+});
 
 projectSchema.pre("validate", function (next) {
   if (this.endDate && this.startDate && this.endDate < this.startDate) {
@@ -177,8 +228,17 @@ projectSchema.pre("save", function (next) {
     this.createdBy?.toString(),
     this.siteManager?.toString(),
     this.client?.toString(),
+    ...((this.clientUsers || []).map((clientId) => clientId?.toString())),
   ].filter(Boolean);
   this.members = [...new Set(participantIds)];
+
+  if ((!this.clientUsers || this.clientUsers.length === 0) && this.client) {
+    this.clientUsers = [this.client];
+  }
+
+  if (!this.client && this.clientUsers?.length > 0) {
+    this.client = this.clientUsers[0];
+  }
 
   next();
 });

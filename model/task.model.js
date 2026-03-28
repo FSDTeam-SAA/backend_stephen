@@ -89,6 +89,13 @@ const taskSchema = new Schema(
       required: true,
       index: true,
     },
+    clientUsers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        index: true,
+      },
+    ],
     activities: [taskActivitySchema],
   },
   { timestamps: true },
@@ -96,8 +103,17 @@ const taskSchema = new Schema(
 
 taskSchema.index({ project: 1, status: 1, createdAt: -1 });
 taskSchema.index({ client: 1, approvalStatus: 1, createdAt: -1 });
+taskSchema.index({ clientUsers: 1, approvalStatus: 1, createdAt: -1 });
 
 taskSchema.pre("save", function (next) {
+  if ((!this.clientUsers || this.clientUsers.length === 0) && this.client) {
+    this.clientUsers = [this.client];
+  }
+
+  if (!this.client && this.clientUsers?.length > 0) {
+    this.client = this.clientUsers[0];
+  }
+
   if (this.isModified("status") && this.status === "completed") {
     this.approvalStatus = "pending";
     this.submittedForApprovalAt = new Date();

@@ -2,6 +2,11 @@ import AppError from "../errors/AppError.js";
 import { createToken, verifyToken } from "../utils/authToken.js";
 import catchAsync from "../utils/catchAsync.js";
 import { generateOTP, hashOTP, isOtpExpired } from "../utils/commonMethod.js";
+import {
+  isCategoryProvided,
+  normalizeCategory,
+  resolveRequiredCategory,
+} from "../utils/category.js";
 import httpStatus from "http-status";
 import sendResponse from "../utils/sendResponse.js";
 import { sendEmail } from "../utils/sendEmail.js";
@@ -39,9 +44,15 @@ const getRefreshCookieOptions = () => {
 
 export const register = catchAsync(async (req, res, next) => {
   const { name, email, password, role } = req.body;
+  const normalizedRole = String(role || "client").trim().toLowerCase();
 
   if (!name || !email || !password) {
     return next(new AppError(400, "Name, email and password are required"));
+  }
+
+  const isPrivilegedRole = normalizedRole === "admin" || normalizedRole === "manager";
+  if (isPrivilegedRole && !isCategoryProvided(req.body.category)) {
+    return next(new AppError(400, "Category is required for admin/manager"));
   }
 
   // Check existing user
@@ -50,37 +61,43 @@ export const register = catchAsync(async (req, res, next) => {
     return next(new AppError(409, "Email already registered"));
   }
 
-  const existingAdminCount = await User.countDocuments({ role: "admin" });
   let resolvedRole = "client";
-  if (role === "admin" && existingAdminCount === 0) {
+
+  if (normalizedRole === "admin") {
     resolvedRole = "admin";
-  } else if (role === "manager") {
+  } else if (normalizedRole === "manager") {
     resolvedRole = "manager";
   }
+  const normalizedCategory = isCategoryProvided(req.body.category)
+    ? resolveRequiredCategory(req.body.category)
+    : undefined;
 
   const user = await User.create({
     name,
     email,
     password,
     role: resolvedRole,
+    category: normalizedCategory,
     isEmailVerified: true,
   });
 
   sendResponse(res, {
     statusCode: 201,
     success: true,
-    message: "Registration successful. You can now log in.",
+    message: "Registration successful",
     data: {
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
+      category: user.category,
     },
   });
 });
 
 export const login = catchAsync(async (req, res, next) => {
   const { email, password, category } = req.body;
+  const normalizedRequestCategory = normalizeCategory(category);
 
   if (!email || !password) {
     return next(new AppError(400, "Email, password are required"));
@@ -93,7 +110,20 @@ export const login = catchAsync(async (req, res, next) => {
     return next(new AppError(404, "User not found"));
   }
 
-  if (user?.category !== category) {
+  if ((user.role === "admin" || user.role === "manager") && !isCategoryProvided(category)) {
+    return next(new AppError(400, "Category is required for admin/manager login"));
+  }
+
+  if (isCategoryProvided(category) && !normalizedRequestCategory) {
+    return next(
+      new AppError(400, "Invalid category. Allowed categories: construction (NVF), interior (TBS)"),
+    );
+  }
+
+  if (
+    normalizedRequestCategory &&
+    normalizeCategory(user?.category) !== normalizedRequestCategory
+  ) {
     return next(new AppError(404, "Category mismatch"));
   }
 
@@ -113,6 +143,7 @@ export const login = catchAsync(async (req, res, next) => {
     _id: user._id,
     email: user.email,
     role: user.role,
+    category: user.category,
   };
 
   const accessToken = createToken(
@@ -346,6 +377,7 @@ export const refreshToken = catchAsync(async (req, res) => {
     _id: user._id,
     email: user.email,
     role: user.role,
+    category: user.category,
   };
 
   const accessToken = createToken(

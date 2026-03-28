@@ -1,18 +1,61 @@
 import httpStatus from "http-status";
 import AppError from "../errors/AppError.js";
-import { Project } from "../model/project.model.js";
 import { ProjectUpdate } from "../model/projectUpdate.model.js";
 import { Comment } from "../model/comment.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { uploadOnCloudinary } from "../utils/commonMethod.js";
 import { getProjectForUser } from "../utils/projectAccess.js";
-import { createNotification } from "../utils/notification.js";
+import {
+  createNotification,
+  createNotificationsForUsers,
+} from "../utils/notification.js";
 import { getIO } from "../utils/socket.js";
 
+const extractUploadedFiles = (files) => {
+  if (!files) {
+    return [];
+  }
+
+  if (Array.isArray(files)) {
+    return files;
+  }
+
+  return Object.values(files).flat();
+};
+
+const uploadProjectUpdateMedia = async (files = []) => {
+  const images = [];
+  const videos = [];
+
+  for (const file of files) {
+    const isVideo = String(file.mimetype || "").startsWith("video/");
+    const uploaded = await uploadOnCloudinary(file.buffer, {
+      folder: "project_updates",
+      resource_type: "auto",
+    });
+
+    if (isVideo) {
+      videos.push({
+        public_id: uploaded.public_id,
+        url: uploaded.secure_url,
+        thumbnailUrl: uploaded.secure_url,
+      });
+      continue;
+    }
+
+    images.push({
+      public_id: uploaded.public_id,
+      url: uploaded.secure_url,
+    });
+  }
+
+  return { images, videos };
+};
+
 export const createProjectUpdate = catchAsync(async (req, res) => {
-  if (req.user.role !== "manager") {
-    throw new AppError(httpStatus.FORBIDDEN, "Only manager can post updates");
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin or manager can post updates");
   }
 
   const { projectId, description } = req.body;
@@ -20,38 +63,34 @@ export const createProjectUpdate = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Project and description are required");
   }
 
-  const project = await Project.findOne({ _id: projectId, siteManager: req.user._id });
+  const project = await getProjectForUser(projectId, req.user);
   if (!project) {
-    throw new AppError(httpStatus.NOT_FOUND, "Project not found or not assigned to manager");
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found or not assigned");
   }
 
-  const files = req.files || [];
-  const uploadedImages = [];
-
-  for (const file of files) {
-    const uploaded = await uploadOnCloudinary(file.buffer, { folder: "project_updates" });
-    uploadedImages.push({
-      public_id: uploaded.public_id,
-      url: uploaded.secure_url,
-    });
-  }
+  const files = extractUploadedFiles(req.files);
+  const { images, videos } = await uploadProjectUpdateMedia(files);
 
   const update = await ProjectUpdate.create({
     project: project._id,
     uploadedBy: req.user._id,
     description,
-    images: uploadedImages,
+    images,
+    videos,
   });
 
   await Promise.all([
-    createNotification({
-      user: project.client,
-      project: project._id,
-      update: update._id,
-      title: "New Site Update",
-      message: `New update posted on ${project.projectName}`,
-      type: "site_update",
-    }),
+    createNotificationsForUsers(
+      project.clientUsers || [project.client],
+      (userId) => ({
+        user: userId,
+        project: project._id,
+        update: update._id,
+        title: "New Site Update",
+        message: `New update posted on ${project.projectName}`,
+        type: "site_update",
+      }),
+    ),
     createNotification({
       user: project.createdBy,
       project: project._id,
@@ -82,9 +121,80 @@ export const createProjectUpdate = catchAsync(async (req, res) => {
   });
 });
 
+export const updateProjectUpdate = catchAsync(async (req, res) => {
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin or manager can edit updates");
+  }
+
+  const { updateId } = req.params;
+  const { description } = req.body;
+
+  const update = await ProjectUpdate.findById(updateId);
+  if (!update) {
+    throw new AppError(httpStatus.NOT_FOUND, "Update not found");
+  }
+
+  const project = await getProjectForUser(update.project, req.user);
+  if (!project) {
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found or not assigned");
+  }
+
+  if (description !== undefined) {
+    const trimmedDescription = String(description).trim();
+    if (!trimmedDescription) {
+      throw new AppError(httpStatus.BAD_REQUEST, "Description cannot be empty");
+    }
+    update.description = trimmedDescription;
+  }
+
+  const files = extractUploadedFiles(req.files);
+  if (files.length > 0) {
+    const { images, videos } = await uploadProjectUpdateMedia(files);
+    update.images = [...(update.images || []), ...images];
+    update.videos = [...(update.videos || []), ...videos];
+  }
+
+  await update.save();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Project update edited successfully",
+    data: update,
+  });
+});
+
+export const deleteProjectUpdate = catchAsync(async (req, res) => {
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin or manager can delete updates");
+  }
+
+  const { updateId } = req.params;
+  const update = await ProjectUpdate.findById(updateId);
+  if (!update) {
+    throw new AppError(httpStatus.NOT_FOUND, "Update not found");
+  }
+
+  const comments = await Comment.find({ update: update._id });
+  await Promise.all(comments.map((comment) => comment.deleteOne()));
+
+  const project = await getProjectForUser(update.project, req.user);
+  if (!project) {
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found or not assigned");
+  }
+
+  await update.deleteOne();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Project update deleted successfully",
+  });
+});
+
 export const getProjectUpdates = catchAsync(async (req, res) => {
   const { projectId } = req.params;
-  await getProjectForUser(projectId, req.user);
+  await getProjectForUser(projectId, req.user, req.query.category);
 
   const updates = await ProjectUpdate.find({ project: projectId })
     .populate("uploadedBy", "name avatar role")
@@ -223,7 +333,7 @@ export const getUpdateComments = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.NOT_FOUND, "Update not found");
   }
 
-  await getProjectForUser(update.project, req.user);
+  await getProjectForUser(update.project, req.user, req.query.category);
 
   const comments = await Comment.find({ update: updateId })
     .populate("user", "name avatar role")

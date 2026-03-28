@@ -2,7 +2,7 @@
   "info": {
     "name": "Backend Stephen - Full API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Complete collection for backend_stephen APIs"
+    "description": "Updated collection for the current backend routes and new project/client/media features."
   },
   "auth": {
     "type": "bearer",
@@ -28,6 +28,18 @@
       "value": ""
     },
     {
+      "key": "managerAccessToken",
+      "value": ""
+    },
+    {
+      "key": "clientAccessToken",
+      "value": ""
+    },
+    {
+      "key": "clientTwoAccessToken",
+      "value": ""
+    },
+    {
       "key": "adminEmail",
       "value": "admin@example.com"
     },
@@ -50,6 +62,22 @@
     {
       "key": "clientPassword",
       "value": "Client@12345"
+    },
+    {
+      "key": "clientTwoEmail",
+      "value": "client.two@example.com"
+    },
+    {
+      "key": "clientTwoPassword",
+      "value": "ClientTwo@12345"
+    },
+    {
+      "key": "clientThreeEmail",
+      "value": "client.three@example.com"
+    },
+    {
+      "key": "clientThreePassword",
+      "value": "ClientThree@12345"
     },
     {
       "key": "otp",
@@ -112,13 +140,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "register"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"],
               "query": []
             },
             "description": ""
@@ -149,13 +172,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
               "query": []
             },
             "description": ""
@@ -165,14 +183,16 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
                   "if (json?.data?.accessToken) {",
-                  "  pm.collectionVariables.set('accessToken', json.data.accessToken);",
-                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken || '');",
+                  "  pm.collectionVariables.set('accessToken', json?.data?.accessToken);",
+                  "}",
+                  "if (json?.data?.refreshToken) {",
+                  "  pm.collectionVariables.set('refreshToken', json?.data?.refreshToken);",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ]
@@ -201,13 +221,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
               "query": []
             },
             "description": ""
@@ -217,19 +232,19 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
                   "if (json?.data?.accessToken) {",
-                  "  pm.collectionVariables.set('managerAccessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('managerAccessToken', json?.data?.accessToken);",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ]
         },
         {
-          "name": "Login Client",
+          "name": "Login Client One",
           "request": {
             "method": "POST",
             "header": [
@@ -252,13 +267,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
               "query": []
             },
             "description": ""
@@ -268,13 +278,59 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
                   "if (json?.data?.accessToken) {",
-                  "  pm.collectionVariables.set('clientAccessToken', json.data.accessToken);",
+                  "  pm.collectionVariables.set('clientAccessToken', json?.data?.accessToken);",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Client Two",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{clientTwoEmail}}\",\n  \"password\": \"{{clientTwoPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.accessToken) {",
+                  "  pm.collectionVariables.set('clientTwoAccessToken', json?.data?.accessToken);",
+                  "}"
+                ]
               }
             }
           ]
@@ -303,13 +359,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/verify",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "verify"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "verify"],
               "query": []
             },
             "description": ""
@@ -317,7 +368,7 @@
           "response": []
         },
         {
-          "name": "Forgot Password (Send OTP)",
+          "name": "Forgot Password",
           "request": {
             "method": "POST",
             "header": [
@@ -340,13 +391,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/forget",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "forget"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "forget"],
               "query": []
             },
             "description": ""
@@ -377,13 +423,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/reset-password",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "reset-password"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "reset-password"],
               "query": []
             },
             "description": ""
@@ -391,7 +432,7 @@
           "response": []
         },
         {
-          "name": "Change Password (Auth)",
+          "name": "Change Password",
           "request": {
             "method": "POST",
             "header": [
@@ -421,13 +462,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/change-password",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "change-password"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "change-password"],
               "query": []
             },
             "description": ""
@@ -458,13 +494,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/refresh-token",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "refresh-token"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh-token"],
               "query": []
             },
             "description": ""
@@ -502,13 +533,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/logout",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "logout"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"],
               "query": []
             },
             "description": ""
@@ -537,13 +563,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/user/profile",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "profile"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "profile"],
               "query": []
             },
             "description": ""
@@ -551,7 +572,7 @@
           "response": []
         },
         {
-          "name": "Update My Profile (JSON Only)",
+          "name": "Update My Profile",
           "request": {
             "method": "PUT",
             "header": [
@@ -581,13 +602,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/user/profile",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "profile"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "profile"],
               "query": []
             },
             "description": ""
@@ -625,13 +641,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/user/password",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "user",
-                "password"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "password"],
               "query": []
             },
             "description": ""
@@ -665,7 +676,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Site Manager\",\n  \"email\": \"{{managerEmail}}\",\n  \"password\": \"{{managerPassword}}\",\n  \"phone\": \"+1-555-111-2222\"\n}",
+              "raw": "{\n  \"name\": \"John Site Manager\",\n  \"email\": \"{{managerEmail}}\",\n  \"password\": \"{{managerPassword}}\",\n  \"phone\": \"+1-555-111-2222\",\n  \"category\": \"construction\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -674,18 +685,27 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/managers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "managers"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "managers"],
               "query": []
             },
             "description": ""
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?._id) {",
+                  "  pm.collectionVariables.set('managerId', json?.data?._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Managers",
@@ -704,13 +724,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/managers",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "managers"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "managers"],
               "query": []
             },
             "description": ""
@@ -718,7 +733,32 @@
           "response": []
         },
         {
-          "name": "Create Project + Auto Client Account",
+          "name": "Delete Manager",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/managers/:managerId",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "managers", "{{managerId}}"],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Create Project With Multiple Clients",
           "request": {
             "method": "POST",
             "header": [
@@ -739,7 +779,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"projectName\": \"Skyline Residence Build\",\n  \"category\": \"construction\",\n  \"projectBudget\": 500000,\n  \"startDate\": \"2026-03-01T00:00:00.000Z\",\n  \"endDate\": \"2026-12-31T00:00:00.000Z\",\n  \"address\": \"221B Baker Street, London\",\n  \"siteManagerId\": \"{{managerId}}\",\n  \"clientName\": \"Alice Client\",\n  \"clientEmail\": \"{{clientEmail}}\",\n  \"clientPassword\": \"{{clientPassword}}\",\n  \"phases\": [\n    {\n      \"phaseName\": \"Deposit\",\n      \"amount\": 100000,\n      \"dueDate\": \"2026-03-05T00:00:00.000Z\",\n      \"paymentStatus\": \"unpaid\",\n      \"notes\": \"Initial mobilization payment\"\n    },\n    {\n      \"phaseName\": \"Structural\",\n      \"amount\": 200000,\n      \"dueDate\": \"2026-05-15T00:00:00.000Z\",\n      \"paymentStatus\": \"unpaid\",\n      \"notes\": \"Structure completion milestone\"\n    }\n  ]\n}",
+              "raw": "{\n  \"projectName\": \"Skyline Residence Build\",\n  \"category\": \"construction\",\n  \"startDate\": \"2026-03-01T00:00:00.000Z\",\n  \"endDate\": \"2026-12-31T00:00:00.000Z\",\n  \"address\": \"221B Baker Street, London\",\n  \"siteManagerId\": \"{{managerId}}\",\n  \"clientAccounts\": [\n    {\n      \"name\": \"Alice Client\",\n      \"email\": \"{{clientEmail}}\",\n      \"password\": \"{{clientPassword}}\"\n    },\n    {\n      \"name\": \"Bob Client\",\n      \"email\": \"{{clientTwoEmail}}\",\n      \"password\": \"{{clientTwoPassword}}\"\n    }\n  ],\n  \"phases\": [\n    {\n      \"phaseName\": \"Deposit\",\n      \"amount\": 100000,\n      \"dueDate\": \"2026-03-05T00:00:00.000Z\",\n      \"paymentStatus\": \"unpaid\",\n      \"notes\": \"Initial mobilization payment\"\n    },\n    {\n      \"phaseName\": \"Structural\",\n      \"amount\": 200000,\n      \"dueDate\": \"2026-05-15T00:00:00.000Z\",\n      \"paymentStatus\": \"unpaid\",\n      \"notes\": \"Structure completion milestone\"\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -748,13 +788,61 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects"],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?.project?._id) {",
+                  "  pm.collectionVariables.set('projectId', json?.data?.project?._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Project With Client Accounts",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientName\": \"Alice Client\",\n  \"projectName\": \"Skyline Residence Build - Revised\",\n  \"category\": \"construction\",\n  \"startDate\": \"2026-03-01T00:00:00.000Z\",\n  \"endDate\": \"2026-12-31T00:00:00.000Z\",\n  \"address\": \"221B Baker Street, London\",\n  \"siteManagerId\": \"{{managerId}}\",\n  \"clientAccounts\": [\n    {\n      \"name\": \"Alice Client\",\n      \"email\": \"{{clientEmail}}\",\n      \"password\": \"{{clientPassword}}\"\n    },\n    {\n      \"name\": \"Bob Client\",\n      \"email\": \"{{clientTwoEmail}}\",\n      \"password\": \"{{clientTwoPassword}}\"\n    },\n    {\n      \"name\": \"Charlie Investor\",\n      \"email\": \"{{clientThreeEmail}}\",\n      \"password\": \"{{clientThreePassword}}\"\n    }\n  ],\n  \"phases\": [\n    {\n      \"phaseName\": \"Deposit\",\n      \"amount\": 100000,\n      \"dueDate\": \"2026-03-05T00:00:00.000Z\",\n      \"paymentStatus\": \"paid\",\n      \"notes\": \"Initial mobilization payment\"\n    },\n    {\n      \"phaseName\": \"Structural\",\n      \"amount\": 200000,\n      \"dueDate\": \"2026-05-15T00:00:00.000Z\",\n      \"paymentStatus\": \"unpaid\",\n      \"notes\": \"Structure completion milestone\"\n    },\n    {\n      \"phaseName\": \"Painting\",\n      \"amount\": 75000,\n      \"dueDate\": \"2026-09-15T00:00:00.000Z\",\n      \"paymentStatus\": \"unpaid\",\n      \"notes\": \"Final finish work\"\n    }\n  ],\n  \"removedImagePublicIds\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/projects/:projectId",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -762,7 +850,7 @@
           "response": []
         },
         {
-          "name": "Get All Projects (Admin)",
+          "name": "Get All Projects",
           "request": {
             "method": "GET",
             "header": [],
@@ -778,13 +866,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects?status=active&search=Skyline",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects"],
               "query": [
                 {
                   "key": "status",
@@ -831,15 +914,33 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/projects/:projectId/assign-manager",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "projects",
-                "{{projectId}}",
-                "assign-manager"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects", "{{projectId}}", "assign-manager"],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/projects/:projectId",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "projects", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -863,13 +964,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/admin/financial-overview",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "admin",
-                "financial-overview"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "financial-overview"],
               "query": []
             },
             "description": ""
@@ -898,12 +994,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/dashboard",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "dashboard"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["dashboard"],
               "query": []
             },
             "description": ""
@@ -916,7 +1008,7 @@
       "name": "Projects",
       "item": [
         {
-          "name": "Get Projects (Role Scoped)",
+          "name": "Get Projects",
           "request": {
             "method": "GET",
             "header": [],
@@ -932,12 +1024,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects?status=active&search=Skyline",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects"],
               "query": [
                 {
                   "key": "status",
@@ -970,13 +1058,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -1014,14 +1097,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "status"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "status"],
               "query": []
             },
             "description": ""
@@ -1059,14 +1136,47 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/progress",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "progress"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "progress"],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Add Project Phase",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phaseName\": \"Rough-in\",\n  \"amount\": 50000,\n  \"dueDate\": \"2026-07-01T00:00:00.000Z\",\n  \"paymentStatus\": \"unpaid\",\n  \"notes\": \"Rough-in services phase\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/projects/:projectId/phases",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "phases"],
               "query": []
             },
             "description": ""
@@ -1104,14 +1214,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/phase-payment",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "phase-payment"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "phase-payment"],
               "query": []
             },
             "description": ""
@@ -1135,14 +1239,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/projects/:projectId/financial-summary",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "projects",
-                "{{projectId}}",
-                "financial-summary"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{{projectId}}", "financial-summary"],
               "query": []
             },
             "description": ""
@@ -1155,7 +1253,7 @@
       "name": "Tasks",
       "item": [
         {
-          "name": "Create Task (Manager)",
+          "name": "Create Task",
           "request": {
             "method": "POST",
             "header": [
@@ -1185,20 +1283,30 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks"],
               "query": []
             },
             "description": ""
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?._id) {",
+                  "  pm.collectionVariables.set('taskId', json?.data?._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "Get Tasks (Filters)",
+          "name": "Get Tasks",
           "request": {
             "method": "GET",
             "header": [],
@@ -1214,12 +1322,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks?projectId={{projectId}}&status=in-progress&approvalStatus=pending",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks"],
               "query": [
                 {
                   "key": "projectId",
@@ -1256,13 +1360,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}"],
               "query": []
             },
             "description": ""
@@ -1270,7 +1369,7 @@
           "response": []
         },
         {
-          "name": "Update Task (Manager)",
+          "name": "Update Task",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1300,13 +1399,47 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}"],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Update Task Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in-progress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks/:taskId/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "status"],
               "query": []
             },
             "description": ""
@@ -1344,14 +1477,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId/resubmit",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "resubmit"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "resubmit"],
               "query": []
             },
             "description": ""
@@ -1359,7 +1486,7 @@
           "response": []
         },
         {
-          "name": "Approve Task (Client)",
+          "name": "Approve Task",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1389,14 +1516,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId/approve",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "approve"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "approve"],
               "query": []
             },
             "description": ""
@@ -1404,7 +1525,7 @@
           "response": []
         },
         {
-          "name": "Reject Task (Client)",
+          "name": "Reject Task",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1434,14 +1555,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/tasks/:taskId/reject",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "tasks",
-                "{{taskId}}",
-                "reject"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{taskId}}", "reject"],
               "query": []
             },
             "description": ""
@@ -1454,7 +1569,7 @@
       "name": "Project Updates Feed",
       "item": [
         {
-          "name": "Create Project Update (JSON only - no images)",
+          "name": "Create Project Update (JSON)",
           "request": {
             "method": "POST",
             "header": [
@@ -1484,20 +1599,30 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates"],
               "query": []
             },
             "description": ""
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?._id) {",
+                  "  pm.collectionVariables.set('updateId', json?.data?._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
-          "name": "Create Project Update (With Images - form-data)",
+          "name": "Create Project Update (Media form-data)",
           "request": {
             "method": "POST",
             "header": [],
@@ -1521,7 +1646,7 @@
                 },
                 {
                   "key": "description",
-                  "value": "Foundation work completed with site photos",
+                  "value": "Foundation work completed with photos and video",
                   "type": "text"
                 },
                 {
@@ -1533,19 +1658,71 @@
                   "key": "images",
                   "type": "file",
                   "src": ""
+                },
+                {
+                  "key": "videos",
+                  "type": "file",
+                  "src": ""
                 }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/updates",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates"],
               "query": []
-            }
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Project Update (Media form-data)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "description",
+                  "value": "Updated progress summary with more media",
+                  "type": "text"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "videos",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/updates/:updateId",
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}"],
+              "query": []
+            },
+            "description": ""
           },
           "response": []
         },
@@ -1566,14 +1743,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/project/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "project",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "project", "{{projectId}}"],
               "query": []
             },
             "description": ""
@@ -1611,14 +1782,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/like",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "like"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "like"],
               "query": []
             },
             "description": ""
@@ -1656,14 +1821,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/share",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "share"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "share"],
               "query": []
             },
             "description": ""
@@ -1701,14 +1860,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/comments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "comments"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "comments"],
               "query": []
             },
             "description": ""
@@ -1732,14 +1885,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/updates/:updateId/comments",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "updates",
-                "{{updateId}}",
-                "comments"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["updates", "{{updateId}}", "comments"],
               "query": []
             },
             "description": ""
@@ -1752,7 +1899,7 @@
       "name": "Documents",
       "item": [
         {
-          "name": "Upload Document (Required form-data)",
+          "name": "Upload Document (PDF/Image)",
           "request": {
             "method": "POST",
             "header": [],
@@ -1793,12 +1940,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/documents",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "documents"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["documents"],
               "query": []
             },
             "description": ""
@@ -1822,14 +1965,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/documents/project/:projectId?category=drawings",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "documents",
-                "project",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["documents", "project", "{{projectId}}"],
               "query": [
                 {
                   "key": "category",
@@ -1863,12 +2000,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats?entityType=Project",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats"],
               "query": [
                 {
                   "key": "entityType",
@@ -1897,19 +2030,27 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/project/:projectId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "project",
-                "{{projectId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "project", "{{projectId}}"],
               "query": []
             },
             "description": ""
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json?.data?._id) {",
+                  "  pm.collectionVariables.set('chatId', json?.data?._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Or Create Task Chat",
@@ -1928,14 +2069,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/task/:taskId",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "task",
-                "{{taskId}}"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "task", "{{taskId}}"],
               "query": []
             },
             "description": ""
@@ -1959,14 +2094,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/:chatId/messages?limit=50&page=1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "{{chatId}}",
-                "messages"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "{{chatId}}", "messages"],
               "query": [
                 {
                   "key": "limit",
@@ -2013,14 +2142,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/:chatId/messages",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "{{chatId}}",
-                "messages"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "{{chatId}}", "messages"],
               "query": []
             },
             "description": ""
@@ -2058,14 +2181,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/chats/:chatId/read",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "chats",
-                "{{chatId}}",
-                "read"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["chats", "{{chatId}}", "read"],
               "query": []
             },
             "description": ""
@@ -2094,12 +2211,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/notifications",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"],
               "query": []
             },
             "description": ""
@@ -2137,13 +2250,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/notifications/read-all",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications",
-                "read-all"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "read-all"],
               "query": []
             },
             "description": ""
@@ -2181,14 +2289,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/notifications/:notificationId/read",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notifications",
-                "{{notificationId}}",
-                "read"
-              ],
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notificationId}}", "read"],
               "query": []
             },
             "description": ""

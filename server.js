@@ -6,6 +6,10 @@ import cookieParser from "cookie-parser";
 import router from "./mainroute/index.js";
 import { createServer } from "http";
 import { initSocket } from "./utils/socket.js";
+import {
+  runAutoProgressSyncOnStartup,
+  startProjectAutoProgressCron,
+} from "./utils/projectAutoProgressCron.js";
 
 import globalErrorHandler from "./middleware/globalErrorHandler.js";
 import notFound from "./middleware/notFound.js";
@@ -93,6 +97,8 @@ server.listen(PORT, async () => {
   try {
     await mongoose.connect(process.env.MONGO_DB_URL);
     console.log("MongoDB connected");
+    startProjectAutoProgressCron();
+    await runAutoProgressSyncOnStartup();
   } catch (err) {
     console.error("MongoDB connection error:", err);
     process.exit(1);

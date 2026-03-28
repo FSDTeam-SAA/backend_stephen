@@ -2,12 +2,14 @@ import mongoose from "mongoose";
 import httpStatus from "http-status";
 import AppError from "../errors/AppError.js";
 import { DOCUMENT_CATEGORIES, Document } from "../model/document.model.js";
-import { Project } from "../model/project.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { uploadOnCloudinary } from "../utils/commonMethod.js";
 import { getProjectForUser } from "../utils/projectAccess.js";
-import { createNotification } from "../utils/notification.js";
+import {
+  createNotification,
+  createNotificationsForUsers,
+} from "../utils/notification.js";
 import { getIO } from "../utils/socket.js";
 
 const DOCUMENT_CATEGORY_ALIASES = {
@@ -47,7 +49,7 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
     );
   }
 
-  const project = await Project.findOne({ _id: projectId });
+  const project = await getProjectForUser(projectId, req.user);
   if (!project) {
     throw new AppError(
       httpStatus.NOT_FOUND,
@@ -57,6 +59,7 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
 
   const uploaded = await uploadOnCloudinary(req.file.buffer, {
     folder: "project_documents",
+    resource_type: "auto",
   });
 
   const document = await Document.create({
@@ -76,13 +79,16 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
   });
 
   await Promise.all([
-    createNotification({
-      user: project.client,
-      project: project._id,
-      title: "New Document Uploaded",
-      message: `${title} added under ${normalizedCategory}`,
-      type: "new_document",
-    }),
+    createNotificationsForUsers(
+      project.clientUsers || [project.client],
+      (userId) => ({
+        user: userId,
+        project: project._id,
+        title: "New Document Uploaded",
+        message: `${title} added under ${normalizedCategory}`,
+        type: "new_document",
+      }),
+    ),
     createNotification({
       user: project.createdBy,
       project: project._id,

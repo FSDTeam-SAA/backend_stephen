@@ -4,18 +4,31 @@ import { Task } from "../model/task.model.js";
 import { Project } from "../model/project.model.js";
 import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
-import { getProjectForUser } from "../utils/projectAccess.js";
-import { createNotification } from "../utils/notification.js";
+import { buildProjectScope, getProjectForUser } from "../utils/projectAccess.js";
+import { createNotification, createNotificationsForUsers } from "../utils/notification.js";
 import { ensureChatRoom } from "../utils/chat.js";
 
-const getTaskScope = (user) => {
+const getTaskScope = async (user, requestedCategory) => {
+  const projectScope = buildProjectScope(user, requestedCategory);
+  const scopedProjectIds = await Project.find(projectScope).distinct("_id");
+
+  const scopedProjectQuery = {
+    project: { $in: scopedProjectIds },
+  };
+
   if (user.role === "admin") {
-    return {};
+    return scopedProjectQuery;
   }
   if (user.role === "manager") {
-    return { manager: user._id };
+    return {
+      ...scopedProjectQuery,
+      manager: user._id,
+    };
   }
-  return { client: user._id };
+  return {
+    ...scopedProjectQuery,
+    $or: [{ client: user._id }, { clientUsers: user._id }],
+  };
 };
 
 export const createTask = catchAsync(async (req, res) => {
@@ -29,7 +42,7 @@ export const createTask = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Missing required task fields");
   }
 
-  const project = await Project.findOne({ _id: projectId });
+  const project = await getProjectForUser(projectId, req.user);
   if (!project) {
     throw new AppError(httpStatus.NOT_FOUND, "Project not found");
   }
@@ -43,6 +56,7 @@ export const createTask = catchAsync(async (req, res) => {
     priority: priority || "medium",
     manager: project.siteManager,
     client: project.client,
+    clientUsers: project.clientUsers || [project.client],
     admin: req.user._id,
     activities: [
       {
@@ -56,19 +70,22 @@ export const createTask = catchAsync(async (req, res) => {
   await ensureChatRoom({
     entityId: task._id,
     entityType: "Task",
-    participants: [req.user._id, project.client],
+    participants: [req.user._id, project.siteManager, ...(project.clientUsers || [project.client])],
     createdBy: req.user._id,
     title: `${task.taskName} Discussion`,
   });
 
-  await createNotification({
-    user: project.client,
-    project: project._id,
-    task: task._id,
-    title: "New Task Assigned",
-    message: `Task created: ${task.taskName}`,
-    type: "task_assigned",
-  });
+  await createNotificationsForUsers(
+    project.clientUsers || [project.client],
+    (userId) => ({
+      user: userId,
+      project: project._id,
+      task: task._id,
+      title: "New Task Assigned",
+      message: `Task created: ${task.taskName}`,
+      type: "task_assigned",
+    }),
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -79,11 +96,11 @@ export const createTask = catchAsync(async (req, res) => {
 });
 
 export const getTasks = catchAsync(async (req, res) => {
-  const { projectId, status, approvalStatus } = req.query;
-  const query = { ...getTaskScope(req.user) };
+  const { projectId, status, approvalStatus, category } = req.query;
+  const query = await getTaskScope(req.user, category);
 
   if (projectId) {
-    await getProjectForUser(projectId, req.user);
+    await getProjectForUser(projectId, req.user, category);
     query.project = projectId;
   }
   if (status) {
@@ -97,6 +114,7 @@ export const getTasks = catchAsync(async (req, res) => {
     .populate("project", "projectName projectCode progress")
     .populate("manager", "name email")
     .populate("client", "name email")
+    .populate("clientUsers", "name email")
     .sort({ createdAt: -1 });
 
   sendResponse(res, {
@@ -109,10 +127,12 @@ export const getTasks = catchAsync(async (req, res) => {
 
 export const getTaskDetails = catchAsync(async (req, res) => {
   const { taskId } = req.params;
-  const task = await Task.findOne({ _id: taskId, ...getTaskScope(req.user) })
+  const taskScope = await getTaskScope(req.user, req.query.category);
+  const task = await Task.findOne({ _id: taskId, ...taskScope })
     .populate("project", "projectName projectCode")
     .populate("manager", "name email")
-    .populate("client", "name email");
+    .populate("client", "name email")
+    .populate("clientUsers", "name email");
 
   if (!task) {
     throw new AppError(httpStatus.NOT_FOUND, "Task not found");
@@ -139,6 +159,7 @@ export const updateTaskByManager = catchAsync(async (req, res) => {
   if (!task) {
     throw new AppError(httpStatus.NOT_FOUND, "Task not found");
   }
+  await getProjectForUser(task.project, req.user);
 
   if (taskName) task.taskName = taskName;
   if (description) task.description = description;
@@ -163,14 +184,17 @@ export const updateTaskByManager = catchAsync(async (req, res) => {
   await task.save();
 
   if (task.approvalStatus === "pending") {
-    await createNotification({
-      user: task.client,
-      task: task._id,
-      project: task.project,
-      title: "Task Awaiting Approval",
-      message: `${task.taskName} is ready for your review`,
-      type: "task_approval_needed",
-    });
+    await createNotificationsForUsers(
+      task.clientUsers || [task.client],
+      (userId) => ({
+        user: userId,
+        task: task._id,
+        project: task.project,
+        title: "Task Awaiting Approval",
+        message: `${task.taskName} is ready for your review`,
+        type: "task_approval_needed",
+      }),
+    );
   }
 
   sendResponse(res, {
@@ -192,6 +216,7 @@ export const resubmitTaskForApproval = catchAsync(async (req, res) => {
   if (!task) {
     throw new AppError(httpStatus.NOT_FOUND, "Task not found");
   }
+  await getProjectForUser(task.project, req.user);
 
   task.status = "completed";
   task.approvalStatus = "pending";
@@ -206,14 +231,17 @@ export const resubmitTaskForApproval = catchAsync(async (req, res) => {
 
   await task.save();
 
-  await createNotification({
-    user: task.client,
-    task: task._id,
-    project: task.project,
-    title: "Task Resubmitted",
-    message: `${task.taskName} has been resubmitted for approval`,
-    type: "task_approval_needed",
-  });
+  await createNotificationsForUsers(
+    task.clientUsers || [task.client],
+    (userId) => ({
+      user: userId,
+      task: task._id,
+      project: task.project,
+      title: "Task Resubmitted",
+      message: `${task.taskName} has been resubmitted for approval`,
+      type: "task_approval_needed",
+    }),
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -229,11 +257,15 @@ export const approveTask = catchAsync(async (req, res) => {
   }
 
   const { taskId } = req.params;
-  const task = await Task.findOne({ _id: taskId, client: req.user._id });
+  const task = await Task.findOne({
+    _id: taskId,
+    $or: [{ client: req.user._id }, { clientUsers: req.user._id }],
+  });
 
   if (!task) {
     throw new AppError(httpStatus.NOT_FOUND, "Task not found");
   }
+  await getProjectForUser(task.project, req.user);
   if (task.status !== "completed" || task.approvalStatus !== "pending") {
     throw new AppError(httpStatus.BAD_REQUEST, "Task is not awaiting approval");
   }
@@ -277,10 +309,14 @@ export const rejectTask = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Rejection reason is required");
   }
 
-  const task = await Task.findOne({ _id: taskId, client: req.user._id });
+  const task = await Task.findOne({
+    _id: taskId,
+    $or: [{ client: req.user._id }, { clientUsers: req.user._id }],
+  });
   if (!task) {
     throw new AppError(httpStatus.NOT_FOUND, "Task not found");
   }
+  await getProjectForUser(task.project, req.user);
   if (task.status !== "completed" || task.approvalStatus !== "pending") {
     throw new AppError(httpStatus.BAD_REQUEST, "Task is not awaiting approval");
   }
@@ -326,13 +362,22 @@ export const updateTaskStatus = catchAsync(async (req, res) => {
     throw new AppError(httpStatus.BAD_REQUEST, "Invalid status value");
   }
 
-  const task = await Task.findOne({
-    _id: taskId,
-    $or:
-      req.user.role === "admin"
-        ? [{ admin: req.user._id }]
-        : [{ manager: req.user._id }],
-  });
+  const projectScope = buildProjectScope(req.user);
+  const scopedProjectIds = await Project.find(projectScope).distinct("_id");
+
+  const task = await Task.findOne(
+    req.user.role === "admin"
+      ? {
+          _id: taskId,
+          admin: req.user._id,
+          project: { $in: scopedProjectIds },
+        }
+      : {
+          _id: taskId,
+          manager: req.user._id,
+          project: { $in: scopedProjectIds },
+        },
+  );
 
   if (!task) {
     throw new AppError(httpStatus.NOT_FOUND, "Task not found");

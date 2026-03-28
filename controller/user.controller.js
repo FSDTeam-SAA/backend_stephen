@@ -21,7 +21,8 @@ export const getProfile = catchAsync(async (req, res) => {
 });
 
 export const updateProfile = catchAsync(async (req, res) => {
-  const { name, phone, address, bio, removeAvatar } = req.body;
+  const { name, phone, address, bio, removeAvatar, email, adminChangeEmail } =
+    req.body;
 
   const user = await User.findById(req.user._id).select(
     "-password -refreshToken -verificationInfo -password_reset_token -otp",
@@ -31,6 +32,39 @@ export const updateProfile = catchAsync(async (req, res) => {
   if (phone) user.phone = phone;
   if (address) user.address = address;
   if (bio) user.bio = bio;
+
+  const nextRequestedEmail = String(adminChangeEmail || email || "")
+    .trim()
+    .toLowerCase();
+
+  const normalizedEmail = String(nextRequestedEmail || "")
+    .trim()
+    .toLowerCase();
+
+  if (normalizedEmail && normalizedEmail !== user.email) {
+    if (req.user.role !== "admin") {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "Only admin can change email",
+      );
+    }
+
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+    if (!isValidEmail) {
+      throw new AppError(httpStatus.BAD_REQUEST, "Invalid email format");
+    }
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+      _id: { $ne: user._id },
+    }).select("_id");
+
+    if (existingUser) {
+      throw new AppError(httpStatus.CONFLICT, "Email already in use");
+    }
+
+    user.email = normalizedEmail;
+  }
 
   if (req.file) {
     const previousPublicId = user.avatar?.public_id;
