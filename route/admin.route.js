@@ -8,6 +8,7 @@ import {
   getAllProjects,
   getFinancialOverview,
   getManagers,
+  syncProjectAutoProgress,
   updateProject,
 } from "../controller/admin.controller.js";
 import { isAdmin, protect } from "../middleware/auth.middleware.js";
@@ -23,6 +24,7 @@ router.delete("/managers/:managerId", deleteManager);
 
 router.post("/projects", upload.array("images", 10), createProject);
 router.get("/projects", getAllProjects);
+router.post("/projects/:projectId/auto-progress", syncProjectAutoProgress);
 router.patch("/projects/:projectId", upload.array("images", 10), updateProject);
 router.delete("/projects/:projectId", deleteProject);
 router.patch("/projects/:projectId/assign-manager", assignManagerToProject);

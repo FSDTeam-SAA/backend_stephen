@@ -19,6 +19,7 @@ import {
 } from "../utils/notification.js";
 import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/commonMethod.js";
 import { resolveScopedCategory } from "../utils/category.js";
+import { syncAutoProgressForProject } from "../utils/projectAutoProgress.js";
 
 const generateProjectCode = () =>
   `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
@@ -867,6 +868,38 @@ export const getAllProjects = catchAsync(async (req, res) => {
     success: true,
     message: "Projects fetched",
     data: projects,
+  });
+});
+
+export const syncProjectAutoProgress = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const dashboardCategory = resolveScopedCategory(
+    req.user,
+    req.query.category || req.body.category,
+  );
+
+  const project = await Project.findOne({ _id: projectId, category: dashboardCategory });
+  if (!project) {
+    throw new AppError(httpStatus.NOT_FOUND, "Project not found");
+  }
+
+  const result = await syncAutoProgressForProject(project, {
+    updatedBy: req.user._id,
+    trigger: "admin-api",
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: result.updated
+      ? "Project progress synced from timeline"
+      : "Project progress already up to date",
+    data: {
+      project: result.project,
+      previousPercent: result.previousPercent,
+      currentPercent: result.nextPercent,
+      updated: result.updated,
+    },
   });
 });
 
