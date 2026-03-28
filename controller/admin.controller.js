@@ -7,7 +7,10 @@ import catchAsync from "../utils/catchAsync.js";
 import sendResponse from "../utils/sendResponse.js";
 import { ensureChatRoom } from "../utils/chat.js";
 import { createNotification } from "../utils/notification.js";
-import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/commonMethod.js";
+import {
+  deleteFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/commonMethod.js";
 
 const generateProjectCode = () =>
   `PRJ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
@@ -16,7 +19,7 @@ const normalizeProjectPhases = (phases = [], phase1 = []) => {
   if (!Array.isArray(phases) || phases.length === 0) {
     throw new AppError(
       httpStatus.BAD_REQUEST,
-      "Add at least one phase to the project"
+      "Add at least one phase to the project",
     );
   }
 
@@ -44,7 +47,7 @@ const normalizeProjectPhases = (phases = [], phase1 = []) => {
     ) {
       throw new AppError(
         httpStatus.BAD_REQUEST,
-        "Each phase must include a valid name, amount, and payment date"
+        "Each phase must include a valid name, amount, and payment date",
       );
     }
 
@@ -53,7 +56,7 @@ const normalizeProjectPhases = (phases = [], phase1 = []) => {
     if (uniquePhaseNames.has(normalizedName)) {
       throw new AppError(
         httpStatus.CONFLICT,
-        "Phase names must be unique within a project"
+        "Phase names must be unique within a project",
       );
     }
 
@@ -495,12 +498,14 @@ export const updateProject = catchAsync(async (req, res) => {
   });
 
   groupChat.participants = [
-    ...new Set([
-      ...(groupChat.participants || []).map((id) => id.toString()),
-      manager._id.toString(),
-      project.createdBy.toString(),
-      project.client?.toString(),
-    ].filter(Boolean)),
+    ...new Set(
+      [
+        ...(groupChat.participants || []).map((id) => id.toString()),
+        manager._id.toString(),
+        project.createdBy.toString(),
+        project.client?.toString(),
+      ].filter(Boolean),
+    ),
   ];
   await groupChat.save();
 
@@ -617,7 +622,7 @@ export const getAllProjects = catchAsync(async (req, res) => {
 });
 
 export const getFinancialOverview = catchAsync(async (req, res) => {
-  const projects = await Project.find({}).populate("client")
+  const projects = await Project.find({}).populate("client");
 
   const totals = projects.reduce(
     (acc, project) => {
