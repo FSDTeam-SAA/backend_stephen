@@ -24,7 +24,9 @@ const DOCUMENT_CATEGORY_ALIASES = {
 };
 
 const normalizeDocumentCategory = (value) => {
-  const key = String(value || "").trim().toLowerCase();
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
   return DOCUMENT_CATEGORY_ALIASES[key] || key;
 };
 
@@ -57,9 +59,16 @@ export const uploadProjectDocument = catchAsync(async (req, res) => {
     );
   }
 
+  const getResourceType = (mime) => {
+    if (mime === "application/pdf") return "raw";
+    if (mime.startsWith("image/")) return "image";
+    return "raw";
+  };
+
   const uploaded = await uploadOnCloudinary(req.file.buffer, {
     folder: "project_documents",
-    resource_type: "auto",
+    resource_type: getResourceType(req.file.mimetype),
+    format: "pdf",
   });
 
   const document = await Document.create({
@@ -158,7 +167,10 @@ export const getProjectDocuments = catchAsync(async (req, res) => {
   ]);
 
   for (const row of totals) {
-    if (row?._id && Object.prototype.hasOwnProperty.call(countsByCategory, row._id)) {
+    if (
+      row?._id &&
+      Object.prototype.hasOwnProperty.call(countsByCategory, row._id)
+    ) {
       countsByCategory[row._id] = row.count;
     }
   }
