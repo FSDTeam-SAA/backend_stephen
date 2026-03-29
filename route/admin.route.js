@@ -11,10 +11,13 @@ import {
   syncProjectAutoProgress,
   updateProject,
 } from "../controller/admin.controller.js";
+import { refreshToken } from "../controller/auth.controller.js";
 import { isAdmin, protect } from "../middleware/auth.middleware.js";
 import upload from "../middleware/multer.middleware.js";
 
 const router = express.Router();
+
+router.post("/refresh-token", refreshToken);
 
 router.use(protect, isAdmin);
 
