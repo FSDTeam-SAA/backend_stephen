@@ -9,6 +9,36 @@ import {
   createNotificationsForUsers,
 } from "../utils/notification.js";
 
+const sortProgressUpdatesNewestFirst = (project) => {
+  if (!project) {
+    return project;
+  }
+
+  const projectData = typeof project.toObject === "function" ? project.toObject() : project;
+  const progressUpdates = Array.isArray(projectData.progressUpdates)
+    ? [...projectData.progressUpdates].sort(
+      (left, right) =>
+        new Date(right?.updatedAt || 0).getTime() - new Date(left?.updatedAt || 0).getTime(),
+    )
+    : [];
+
+  return {
+    ...projectData,
+    progressUpdates,
+  };
+};
+
+const sortProjectProgressUpdatesForPersistence = (project) => {
+  if (!project || !Array.isArray(project.progressUpdates)) {
+    return;
+  }
+
+  project.progressUpdates.sort(
+    (left, right) =>
+      new Date(left?.updatedAt || 0).getTime() - new Date(right?.updatedAt || 0).getTime(),
+  );
+};
+
 export const getProjects = catchAsync(async (req, res) => {
   const { status, search, category } = req.query;
   const scope = buildProjectScope(req.user, category);
@@ -43,7 +73,8 @@ export const getProjectDetails = catchAsync(async (req, res) => {
     .populate("siteManager", "name email avatar")
     .populate("client", "name email avatar")
     .populate("clientUsers", "name email avatar")
-    .populate("createdBy", "name email");
+    .populate("createdBy", "name email")
+    .populate("progressUpdates.updatedBy", "name email avatar role");
 
   if (!project) {
     throw new AppError(httpStatus.NOT_FOUND, "Project not found");
@@ -53,7 +84,7 @@ export const getProjectDetails = catchAsync(async (req, res) => {
     statusCode: httpStatus.OK,
     success: true,
     message: "Project details fetched",
-    data: project,
+    data: sortProgressUpdatesNewestFirst(project),
   });
 });
 
@@ -78,12 +109,14 @@ export const addProjectProgressUpdate = catchAsync(async (req, res) => {
     updatedBy: req.user._id,
     updatedAt: new Date(),
   });
+  sortProjectProgressUpdatesForPersistence(project);
 
   if (Number(percent) >= 100) {
     project.projectStatus = "finished";
   }
 
   await project.save();
+  await project.populate("progressUpdates.updatedBy", "name email avatar role");
 
   if (req.user.role === "manager") {
     await createNotificationsForUsers(
@@ -102,7 +135,55 @@ export const addProjectProgressUpdate = catchAsync(async (req, res) => {
     statusCode: httpStatus.OK,
     success: true,
     message: "Progress updated successfully",
-    data: project,
+    data: sortProgressUpdatesNewestFirst(project),
+  });
+});
+
+export const updateProjectProgressUpdate = catchAsync(async (req, res) => {
+  if (!["admin", "manager"].includes(req.user.role)) {
+    throw new AppError(httpStatus.FORBIDDEN, "Only admin/manager can update progress");
+  }
+
+  const { projectId, progressUpdateId } = req.params;
+  const { progressName, percent, note } = req.body;
+
+  if (!progressName || percent === undefined) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Progress name and percent are required");
+  }
+
+  const numericPercent = Number(percent);
+  if (Number.isNaN(numericPercent) || numericPercent < 0 || numericPercent > 100) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Percent must be a number between 0 and 100");
+  }
+
+  const project = await getProjectForUser(projectId, req.user);
+  const progressUpdate = project.progressUpdates.id(progressUpdateId);
+
+  if (!progressUpdate) {
+    throw new AppError(httpStatus.NOT_FOUND, "Progress update not found");
+  }
+
+  progressUpdate.progressName = String(progressName).trim();
+  progressUpdate.percent = numericPercent;
+  progressUpdate.note = String(note || "").trim();
+  progressUpdate.updatedBy = req.user._id;
+  progressUpdate.updatedAt = new Date();
+
+  sortProjectProgressUpdatesForPersistence(project);
+
+  const latestProgressUpdate =
+    project.progressUpdates[project.progressUpdates.length - 1] ?? null;
+  const latestPercent = Number(latestProgressUpdate?.percent ?? 0);
+  project.projectStatus = latestPercent >= 100 ? "finished" : "active";
+
+  await project.save();
+  await project.populate("progressUpdates.updatedBy", "name email avatar role");
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Progress updated successfully",
+    data: sortProgressUpdatesNewestFirst(project),
   });
 });
 
