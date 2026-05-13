@@ -6,6 +6,7 @@ import {
   getProjectFinancialSummary,
   getProjects,
   updatePhasePaymentStatus,
+  updateProjectProgressUpdate,
   updateProjectStatus,
 } from "../controller/project.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
@@ -18,6 +19,7 @@ router.get("/", getProjects);
 router.get("/:projectId", getProjectDetails);
 router.patch("/:projectId/status", updateProjectStatus);
 router.post("/:projectId/progress", addProjectProgressUpdate);
+router.patch("/:projectId/progress/:progressUpdateId", updateProjectProgressUpdate);
 router.post("/:projectId/phases", addProjectPhase);
 router.patch("/:projectId/phase-payment", updatePhasePaymentStatus);
 router.get("/:projectId/financial-summary", getProjectFinancialSummary);
